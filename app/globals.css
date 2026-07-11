@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --cream: #fff8ec;
+  --paper: #fffdf8;
+  --brown: #3b2418;
+  --gold: #b48a45;
+  --line: #eadfcf;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--cream);
+  color: var(--brown);
+  font-family: var(--font-rubik), Arial, Helvetica, sans-serif;
+}
+
+button, input, select, textarea { font: inherit; }
+button:disabled { cursor: not-allowed; }
+
+
+.thermal-receipt { width: 80mm; max-width: 100%; margin: 0 auto; padding: 5mm; font-family: "Courier New", Courier, monospace; font-size: 12px; line-height: 1.35; }
+.receipt-center { text-align: center; }
+.receipt-center h1 { margin: 0 0 4px; font-size: 18px; letter-spacing: .5px; }
+.receipt-center p { margin: 2px 0; }
+.receipt-divider { border-top: 1px dashed #000; margin: 8px 0; }
+.receipt-row, .receipt-item-header, .receipt-item-detail, .receipt-total { display: flex; justify-content: space-between; gap: 10px; }
+.receipt-row { margin: 3px 0; }
+.receipt-item-header { font-weight: 700; margin-bottom: 6px; }
+.receipt-item { margin: 7px 0; }
+.receipt-item-name { font-weight: 700; word-break: break-word; }
+.receipt-item-detail { margin-top: 2px; }
+.receipt-total { margin-top: 8px; font-size: 16px; font-weight: 700; }
+.receipt-footer { margin-top: 8px; }
+@media print {
+  @page { size: 80mm auto; margin: 0; }
+  html, body { width: 80mm; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  body * { visibility: hidden !important; }
+  #thermal-receipt, #thermal-receipt * { visibility: visible !important; }
+  #thermal-receipt { position: absolute; left: 0; top: 0; width: 80mm; max-width: 80mm; margin: 0; padding: 4mm; color: #000 !important; background: #fff !important; }
+  .no-print { display: none !important; }
+}
+
+
+.input {
+  width: 100%;
+  border: 1px solid #d9c8b3;
+  border-radius: 1rem;
+  background: #fff;
+  padding: 0.75rem 1rem;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #3b2418;
+}
+
+
+:root {
+  --receipt-paper-width: 80mm;
+}
+
+.receipt-logo {
+  display: block;
+  max-width: 65%;
+  max-height: 18mm;
+  margin: 0 auto 5px;
+  object-fit: contain;
+  filter: grayscale(1) contrast(1.35);
+}
+
+.receipt-font-small {
+  font-size: 10px;
+}
+
+.receipt-font-medium {
+  font-size: 12px;
+}
+
+.receipt-font-large {
+  font-size: 14px;
+}
+
+.receipt-divider-space {
+  height: 8px;
+}
+
+@media print {
+  @page {
+    size: var(--receipt-paper-width) auto;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: var(--receipt-paper-width);
+  }
+
+  #thermal-receipt {
+    width: var(--receipt-paper-width) !important;
+    max-width: var(--receipt-paper-width) !important;
+  }
+}
+
+
+.receipt-topping {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 3px;
+  padding-left: 10px;
+  font-size: 0.92em;
+}
+
+.receipt-tax-note{margin:5px 0 0;text-align:right;font-size:.9em;}
