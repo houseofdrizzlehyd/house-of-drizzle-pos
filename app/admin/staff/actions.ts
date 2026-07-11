@@ -8,7 +8,10 @@ import type { UserRole } from "@/types/auth";
 
 const allowedRoles: UserRole[] = ["biller", "admin", "super_admin"];
 
-function staffRedirect(message: string, type: "success" | "error") {
+function staffRedirect(
+  message: string,
+  type: "success" | "error"
+): never {
   redirect(`/admin/staff?${type}=${encodeURIComponent(message)}`);
 }
 
@@ -29,31 +32,38 @@ export async function createStaff(formData: FormData) {
 
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
-  });
+  email,
+  password,
+  email_confirm: true,
+  user_metadata: {
+    full_name: fullName,
+  },
+});
 
-  if (error || !data.user) {
-    staffRedirect(error?.message ?? "Unable to create staff account.", "error");
-  }
+if (error) {
+  staffRedirect(error.message, "error");
+}
 
-  const { error: profileError } = await admin
-    .from("profiles")
-    .update({
-      full_name: fullName,
-      role,
-      is_active: true,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", data.user.id);
+if (!data.user) {
+  staffRedirect("Unable to create staff account.", "error");
+}
 
-  if (profileError) {
-    await admin.auth.admin.deleteUser(data.user.id);
-    staffRedirect(profileError.message, "error");
-  }
+const createdUserId: string = data.user.id;
 
+const { error: profileError } = await admin
+  .from("profiles")
+  .update({
+    full_name: fullName,
+    role,
+    is_active: true,
+    updated_at: new Date().toISOString(),
+  })
+  .eq("id", createdUserId);
+
+if (profileError) {
+  await admin.auth.admin.deleteUser(createdUserId);
+  staffRedirect(profileError.message, "error");
+}
   revalidatePath("/admin/staff");
   staffRedirect(`${fullName} was created as ${role.replace("_", " ")}.`, "success");
 }
