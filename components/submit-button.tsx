@@ -7,10 +7,12 @@ export function SubmitButton({
   idleLabel,
   pendingLabel,
   className = "",
+  icon,
 }: {
   idleLabel: string;
   pendingLabel: string;
   className?: string;
+  icon?: React.ReactNode;
 }) {
   const { pending } = useFormStatus();
 
@@ -19,9 +21,13 @@ export function SubmitButton({
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className={`flex items-center justify-center gap-2 transition disabled:opacity-70 ${className}`}
+      className={`flex items-center justify-center gap-2 transition disabled:cursor-wait disabled:opacity-70 ${className}`}
     >
-      {pending && <LoaderCircle size={18} className="animate-spin" />}
+      {pending ? (
+        <LoaderCircle size={18} className="animate-spin" />
+      ) : (
+        icon
+      )}
       <span>{pending ? pendingLabel : idleLabel}</span>
     </button>
   );

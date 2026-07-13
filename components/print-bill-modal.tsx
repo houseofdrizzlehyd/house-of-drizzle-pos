@@ -1,6 +1,7 @@
 "use client";
 
-import { Printer, X } from "lucide-react";
+import { LoaderCircle, Printer, X } from "lucide-react";
+import { useState } from "react";
 import type { PrintableBill } from "@/app/pos/actions";
 import type { BillSettings } from "@/types/bill-settings";
 
@@ -13,12 +14,18 @@ export function PrintBillModal({
   settings: BillSettings;
   onClose: () => void;
 }) {
+  const [printing, setPrinting] = useState(false);
+
   function printBill() {
+    setPrinting(true);
     document.documentElement.style.setProperty(
       "--receipt-paper-width",
       `${settings.paper_width}mm`
     );
-    window.print();
+    requestAnimationFrame(() => {
+      window.print();
+      window.setTimeout(() => setPrinting(false), 500);
+    });
   }
 
   const formattedDate = new Intl.DateTimeFormat("en-IN", {
@@ -65,10 +72,11 @@ export function PrintBillModal({
           <button
             type="button"
             onClick={printBill}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-[#3b2418] py-3 font-bold text-white"
+            disabled={printing}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-[#3b2418] py-3 font-bold text-white disabled:cursor-wait disabled:opacity-70"
           >
-            <Printer size={18} />
-            Print Bill
+            {printing ? <LoaderCircle size={18} className="animate-spin" /> : <Printer size={18} />}
+            {printing ? "Preparing..." : "Print Bill"}
           </button>
         </div>
       </div>
