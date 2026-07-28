@@ -1,0 +1,155 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { Order, OrderItem } from "@/lib/types";
+
+type OrderWithItems = Order & { items: OrderItem[] };
+
+function timeAgo(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.max(0, Math.round(diffMs / 60000));
+  if (mins < 1) return "just now";
+  return `${mins} min ago`;
+}
+
+export function AdminOrdersClient() {
+  const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/admin/orders", { cache: "no-store" });
+    if (!res.ok) return;
+    const body = await res.json();
+    setOrders(body.orders ?? []);
+  }, []);
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  async function act(id: string, action: "mark_paid" | "mark_ready" | "mark_completed") {
+    setBusyId(id);
+    await fetch(`/api/admin/orders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    await load();
+    setBusyId(null);
+  }
+
+  const unpaid = orders.filter((o) => o.status === "placed");
+  const inKitchen = orders.filter((o) => o.status === "preparing" || o.status === "ready");
+
+  return (
+    <div className="p-3 sm:p-6">
+      <div className="flex items-center justify-between mb-3 sm:mb-5">
+        <span className="text-sm sm:text-base font-medium text-chocolate">Orders</span>
+        <span className="flex items-center gap-1.5 text-[11px] text-mocha">
+          <span className="w-1.5 h-1.5 rounded-full bg-pistachio" /> Live
+        </span>
+      </div>
+
+      <div className="flex gap-1.5 mb-4">
+        <span className="chip bg-gold text-chocolate">Unpaid &middot; {unpaid.length}</span>
+        <span className="chip bg-vanilla text-mocha">In kitchen &middot; {inKitchen.length}</span>
+      </div>
+
+      <div className="sm:grid sm:grid-cols-2 sm:gap-6">
+      <div>
+      <div className="text-[10px] uppercase tracking-wide text-mocha mb-2">Waiting at counter</div>
+      <div className="flex flex-col gap-2.5 mb-5 sm:mb-0">
+        {unpaid.length === 0 && <div className="text-xs text-mocha">No unpaid orders.</div>}
+        {unpaid.map((order) => (
+          <div key={order.id} className="bg-strawberry/10 border-l-[3px] border-strawberry rounded-r-lg p-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-sm font-medium text-chocolate">#{order.order_number}</span>
+                <span className="text-[11px] text-mocha ml-1.5">{order.customer_name}</span>
+              </div>
+              <span className="chip bg-strawberry text-[#FBEAF0]">Unpaid</span>
+            </div>
+            <div className="text-[11px] text-espresso mt-1.5 leading-relaxed">
+              {order.items.map((i) => (
+                <div key={i.id}>
+                  {i.product_name}
+                  {i.quantity > 1 ? ` x${i.quantity}` : ""}
+                  {i.is_free_reward ? " (reward)" : ""}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between mt-2.5">
+              <span className="text-xs font-medium text-chocolate">Rs {Number(order.subtotal).toFixed(0)}</span>
+              <button
+                onClick={() => act(order.id, "mark_paid")}
+                disabled={busyId === order.id}
+                className="chip bg-gold text-chocolate font-medium disabled:opacity-60"
+              >
+                Mark as paid
+              </button>
+            </div>
+            <div className="text-[10px] text-mocha mt-1">{timeAgo(order.created_at)}</div>
+          </div>
+        ))}
+      </div>
+      </div>
+
+      <div>
+      <div className="text-[10px] uppercase tracking-wide text-mocha mb-2">In the kitchen</div>
+      <div className="flex flex-col gap-2.5">
+        {inKitchen.length === 0 && <div className="text-xs text-mocha">Nothing in progress.</div>}
+        {inKitchen.map((order) => (
+          <div
+            key={order.id}
+            className={`rounded-lg p-3 ${
+              order.status === "preparing"
+                ? "bg-mango/10 border-l-[3px] border-mango rounded-r-lg"
+                : "bg-vanilla"
+            }`}
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-sm font-medium text-chocolate">#{order.order_number}</span>
+                <span className="text-[11px] text-mocha ml-1.5">{order.customer_name}</span>
+              </div>
+              <span className="chip bg-pistachio text-[#EAF3DE]">Paid</span>
+            </div>
+            <div className="text-[11px] text-espresso mt-1.5 leading-relaxed">
+              {order.items.map((i) => (
+                <div key={i.id}>
+                  {i.product_name}
+                  {i.quantity > 1 ? ` x${i.quantity}` : ""}
+                  {i.is_free_reward ? " (reward)" : ""}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between mt-2.5">
+              <span className="text-xs font-medium text-chocolate">Rs {Number(order.subtotal).toFixed(0)}</span>
+              {order.status === "preparing" ? (
+                <button
+                  onClick={() => act(order.id, "mark_ready")}
+                  disabled={busyId === order.id}
+                  className="chip bg-pistachio text-[#EAF3DE] font-medium disabled:opacity-60"
+                >
+                  Mark ready
+                </button>
+              ) : (
+                <button
+                  onClick={() => act(order.id, "mark_completed")}
+                  disabled={busyId === order.id}
+                  className="chip bg-gold text-chocolate font-medium disabled:opacity-60"
+                >
+                  Complete
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      </div>
+      </div>
+    </div>
+  );
+}

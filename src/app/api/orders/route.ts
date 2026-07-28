@@ -1,0 +1,187 @@
+import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+
+type IncomingLine = {
+  productId: string;
+  quantity: number;
+  toppingIds: string[];
+};
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  const name = String(body.name ?? "").trim();
+  const mobile = String(body.mobile ?? "").trim();
+  const lines: IncomingLine[] = Array.isArray(body.lines) ? body.lines : [];
+
+  if (!name) return NextResponse.json({ error: "Name is required." }, { status: 400 });
+  if (!/^[0-9]{10}$/.test(mobile)) {
+    return NextResponse.json({ error: "A valid 10-digit mobile number is required." }, { status: 400 });
+  }
+  if (lines.length === 0) {
+    return NextResponse.json({ error: "Cart is empty." }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+
+  // Re-fetch every product and topping server-side — never trust client-sent prices.
+  const productIds = [...new Set(lines.map((l) => l.productId))];
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select("*")
+    .in("id", productIds);
+
+  if (productsError || !products) {
+    return NextResponse.json({ error: "Could not load menu items." }, { status: 500 });
+  }
+
+  const toppingIds = [...new Set(lines.flatMap((l) => l.toppingIds ?? []))];
+  const { data: toppings } = toppingIds.length
+    ? await supabase.from("toppings").select("*").in("id", toppingIds)
+    : { data: [] as { id: string; product_id: string; name: string; price: number }[] };
+
+  const productById = new Map(products.map((p) => [p.id, p]));
+  const toppingById = new Map((toppings ?? []).map((t) => [t.id, t]));
+
+  type ItemRow = {
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    topping_names: string[];
+    topping_price: number;
+    line_total: number;
+    gst_rate: number;
+    is_free_reward: boolean;
+  };
+
+  const orderItems: ItemRow[] = [];
+
+  for (const line of lines) {
+    const product = productById.get(line.productId);
+    if (!product || !product.is_available) {
+      return NextResponse.json({ error: `An item in your cart is no longer available.` }, { status: 409 });
+    }
+    const quantity = Math.max(1, Number(line.quantity) || 1);
+    const selectedToppings = (line.toppingIds ?? [])
+      .map((id) => toppingById.get(id))
+      .filter((t): t is NonNullable<typeof t> => Boolean(t) && t!.product_id === product.id);
+
+    const toppingPrice = selectedToppings.reduce((s, t) => s + Number(t.price), 0);
+    const unitPrice = Number(product.price);
+    const lineTotal = (unitPrice + toppingPrice) * quantity;
+
+    orderItems.push({
+      product_id: product.id,
+      product_name: product.name,
+      quantity,
+      unit_price: unitPrice,
+      topping_names: selectedToppings.map((t) => t.name),
+      topping_price: toppingPrice,
+      line_total: lineTotal,
+      gst_rate: Number(product.gst_rate),
+      is_free_reward: false,
+    });
+  }
+
+  // Find or create the customer by mobile number, and bump their order count.
+  const { data: existingCustomer } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("mobile_number", mobile)
+    .maybeSingle();
+
+  let customerId: string;
+  let orderCount: number;
+
+  if (existingCustomer) {
+    orderCount = existingCustomer.order_count + 1;
+    customerId = existingCustomer.id;
+    await supabase
+      .from("customers")
+      .update({ name, order_count: orderCount, updated_at: new Date().toISOString() })
+      .eq("id", customerId);
+  } else {
+    orderCount = 1;
+    const { data: created, error: createError } = await supabase
+      .from("customers")
+      .insert({ mobile_number: mobile, name, order_count: orderCount })
+      .select()
+      .single();
+    if (createError || !created) {
+      return NextResponse.json({ error: "Could not create customer record." }, { status: 500 });
+    }
+    customerId = created.id;
+  }
+
+  // Loyalty reward: every Nth order (default 6) gets one specific reward dish free.
+  const { data: settingRow } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "reward_milestone_every_n_orders")
+    .maybeSingle();
+  const milestone = Number(settingRow?.value ?? 6) || 6;
+
+  let rewardApplied: "none" | "free_dish" = "none";
+  let rewardProductId: string | null = null;
+
+  if (orderCount > 0 && orderCount % milestone === 0) {
+    const { data: rewardProduct } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_reward_dish", true)
+      .eq("is_available", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (rewardProduct) {
+      rewardApplied = "free_dish";
+      rewardProductId = rewardProduct.id;
+      orderItems.push({
+        product_id: rewardProduct.id,
+        product_name: rewardProduct.name,
+        quantity: 1,
+        unit_price: Number(rewardProduct.price),
+        topping_names: [],
+        topping_price: 0,
+        line_total: 0,
+        gst_rate: Number(rewardProduct.gst_rate),
+        is_free_reward: true,
+      });
+    }
+  }
+
+  const subtotal = orderItems.reduce((s, i) => s + i.line_total, 0);
+
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .insert({
+      customer_id: customerId,
+      customer_name: name,
+      customer_mobile: mobile,
+      status: "placed",
+      is_paid: false,
+      subtotal,
+      reward_applied: rewardApplied,
+      reward_product_id: rewardProductId,
+    })
+    .select()
+    .single();
+
+  if (orderError || !order) {
+    return NextResponse.json({ error: "Could not place order. Please try again." }, { status: 500 });
+  }
+
+  const { error: itemsError } = await supabase
+    .from("order_items")
+    .insert(orderItems.map((i) => ({ ...i, order_id: order.id })));
+
+  if (itemsError) {
+    return NextResponse.json({ error: "Could not save order items." }, { status: 500 });
+  }
+
+  return NextResponse.json({ orderId: order.id, orderNumber: order.order_number });
+}

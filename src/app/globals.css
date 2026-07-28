@@ -1,0 +1,62 @@
+@import url("https://fonts.googleapis.com/css2?family=Pacifico&family=Yellowtail&family=Oswald:wght@500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cream: #F7F2E8;
+  --chocolate: #4A2C1D;
+  --gold: #C8A45D;
+  --mocha: #6B4A35;
+  --vanilla: #E8DCC8;
+  --espresso: #2B2B2B;
+}
+
+body {
+  background: var(--cream);
+  color: var(--espresso);
+}
+
+.btn-primary {
+  @apply bg-gold text-chocolate font-medium rounded-lg py-2.5 px-4 text-center transition active:scale-[0.98];
+}
+
+.card {
+  @apply bg-vanilla rounded-card p-3;
+}
+
+.chip {
+  @apply text-xs font-medium px-3 py-1 rounded-full;
+}
+
+.font-script {
+  font-family: "Pacifico", cursive;
+}
+
+.font-script-thin {
+  font-family: "Yellowtail", cursive;
+}
+
+.font-condensed {
+  font-family: "Oswald", sans-serif;
+}
+
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee-scroll 14s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
