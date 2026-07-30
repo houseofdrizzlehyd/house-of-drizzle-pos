@@ -140,6 +140,11 @@ function AddCouponForm({ onCreated }: { onCreated: () => void }) {
 function CouponRow({ coupon, onChange }: { coupon: Coupon; onChange: () => void }) {
   const [busyField, setBusyField] = useState<keyof Coupon | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState(coupon.name);
+  const [editPercent, setEditPercent] = useState(String(coupon.discount_percent));
+  const [editError, setEditError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   async function toggle(field: keyof Coupon) {
     setBusyField(field);
@@ -161,6 +166,23 @@ function CouponRow({ coupon, onChange }: { coupon: Coupon; onChange: () => void 
     }
   }
 
+  async function saveEdit() {
+    setEditError(null);
+    const pct = Number(editPercent);
+    if (!editName.trim() || !Number.isFinite(pct) || pct <= 0 || pct > 100) {
+      setEditError("Name and a discount percent between 1 and 100 are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await patchCoupon(coupon.id, { name: editName.trim(), discountPercent: pct });
+      setShowEdit(false);
+      onChange();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="card">
       <div className="flex justify-between items-start">
@@ -168,15 +190,55 @@ function CouponRow({ coupon, onChange }: { coupon: Coupon; onChange: () => void 
           <span className="text-xs font-medium text-espresso truncate block">{coupon.name}</span>
           <span className="text-[10px] text-mocha mt-0.5 block">{Number(coupon.discount_percent)}% off</span>
         </div>
-        <button
-          onClick={remove}
-          disabled={deleting}
-          className="text-[11px] text-strawberry flex-shrink-0 ml-2 flex items-center gap-1 disabled:opacity-60"
-        >
-          {deleting && <Spinner className="h-2.5 w-2.5" />}
-          Delete
-        </button>
+        <span className="flex items-center gap-2 flex-shrink-0 ml-2">
+          <button
+            onClick={() => {
+              setEditName(coupon.name);
+              setEditPercent(String(coupon.discount_percent));
+              setEditError(null);
+              setShowEdit((v) => !v);
+            }}
+            className="text-[11px] text-mocha"
+          >
+            {showEdit ? "Close" : "Edit"}
+          </button>
+          <button
+            onClick={remove}
+            disabled={deleting}
+            className="text-[11px] text-strawberry flex items-center gap-1 disabled:opacity-60"
+          >
+            {deleting && <Spinner className="h-2.5 w-2.5" />}
+            Delete
+          </button>
+        </span>
       </div>
+
+      {showEdit && (
+        <div className="mt-2.5 pt-2.5 border-t border-gold/40 flex flex-col gap-1.5">
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            placeholder="Coupon name"
+            className="bg-cream rounded-lg px-2 py-1.5 text-[11px] outline-none"
+          />
+          <input
+            value={editPercent}
+            onChange={(e) => setEditPercent(e.target.value.replace(/[^0-9.]/g, ""))}
+            placeholder="Discount %"
+            className="bg-cream rounded-lg px-2 py-1.5 text-[11px] outline-none"
+          />
+          {editError && <div className="text-[11px] text-strawberry">{editError}</div>}
+          <button
+            onClick={saveEdit}
+            disabled={saving}
+            className="chip bg-gold text-chocolate font-medium self-start flex items-center gap-1.5 disabled:opacity-60"
+          >
+            {saving && <Spinner className="h-3 w-3" />}
+            Save
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-1.5 mt-2.5">
         <Toggle
           label="Active"

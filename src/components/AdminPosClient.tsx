@@ -116,6 +116,17 @@ export function AdminPosClient() {
     setCart((prev) => prev.map((l) => (l.key === key ? { ...l, quantity } : l)));
   }
 
+  function discardSale() {
+    if (cart.length === 0 && !name && !mobile && !selectedCouponId) return;
+    if (!window.confirm("Discard this sale? All items and customer details will be cleared.")) return;
+    setCart([]);
+    setName("");
+    setMobile("");
+    setSelectedCouponId(null);
+    setError(null);
+    window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+  }
+
   const subtotal = useMemo(
     () =>
       cart.reduce((s, l) => {
@@ -258,7 +269,14 @@ export function AdminPosClient() {
 
         <div className="lg:w-80 flex-shrink-0">
           <div className="card sticky top-3">
-            <div className="text-xs font-medium text-chocolate mb-2">Current sale</div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-chocolate">Current sale</span>
+              {(cart.length > 0 || name || mobile || selectedCouponId) && (
+                <button onClick={discardSale} className="text-[11px] text-strawberry">
+                  Discard
+                </button>
+              )}
+            </div>
             {cart.length === 0 ? (
               <div className="text-[11px] text-mocha py-3 text-center">No items added yet.</div>
             ) : (

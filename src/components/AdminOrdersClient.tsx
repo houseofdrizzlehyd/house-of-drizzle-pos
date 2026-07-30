@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Order, OrderItem, OrderSource } from "@/lib/types";
 import { Spinner } from "@/components/Spinner";
+import { Receipt, type ReceiptItem, type ReceiptOrder } from "@/components/Receipt";
 
 type OrderWithItems = Order & { items: OrderItem[] };
+type ReceiptData = { order: ReceiptOrder; items: ReceiptItem[] };
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -25,6 +27,8 @@ export function AdminOrdersClient() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [printingId, setPrintingId] = useState<string | null>(null);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/orders", { cache: "no-store" });
@@ -39,6 +43,11 @@ export function AdminOrdersClient() {
     return () => clearInterval(interval);
   }, [load]);
 
+  // Once the fetched receipt is in the DOM, open the print dialog.
+  useEffect(() => {
+    if (receiptData) window.print();
+  }, [receiptData]);
+
   async function act(id: string, action: "mark_paid" | "mark_ready" | "mark_completed") {
     setBusyId(id);
     await fetch(`/api/admin/orders/${id}`, {
@@ -48,6 +57,18 @@ export function AdminOrdersClient() {
     });
     await load();
     setBusyId(null);
+  }
+
+  async function printBill(id: string) {
+    setPrintingId(id);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const body = await res.json();
+      setReceiptData({ order: body.order, items: body.items });
+    } finally {
+      setPrintingId(null);
+    }
   }
 
   const unpaid = orders.filter((o) => o.status === "placed");
@@ -179,12 +200,24 @@ export function AdminOrdersClient() {
                 </button>
               )}
             </div>
+            <div className="text-right mt-1.5">
+              <button
+                onClick={() => printBill(order.id)}
+                disabled={printingId === order.id}
+                className="text-[10px] text-mocha underline inline-flex items-center gap-1 disabled:opacity-60"
+              >
+                {printingId === order.id && <Spinner className="h-2.5 w-2.5" />}
+                Print bill
+              </button>
+            </div>
           </div>
         ))}
       </div>
       </div>
       </div>
       )}
+
+      {receiptData && <Receipt order={receiptData.order} items={receiptData.items} />}
     </div>
   );
 }
