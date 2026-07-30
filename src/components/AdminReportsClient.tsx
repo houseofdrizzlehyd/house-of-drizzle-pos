@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Spinner } from "@/components/Spinner";
 
 type Report = {
   range: string;
@@ -85,7 +86,9 @@ export function AdminReportsClient() {
       </div>
 
       {!report ? (
-        <div className="text-xs text-mocha">Loading...</div>
+        <div className="flex justify-center pt-10">
+          <Spinner className="h-6 w-6 text-mocha" />
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">

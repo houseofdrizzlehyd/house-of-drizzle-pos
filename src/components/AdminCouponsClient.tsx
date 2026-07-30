@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Coupon } from "@/lib/types";
+import { Spinner } from "@/components/Spinner";
 
 async function patchCoupon(id: string, updates: Record<string, unknown>) {
   await fetch(`/api/admin/coupons/${id}`, {
@@ -14,6 +15,7 @@ async function patchCoupon(id: string, updates: Record<string, unknown>) {
 export function AdminCouponsClient() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/coupons", { cache: "no-store" });
@@ -23,7 +25,7 @@ export function AdminCouponsClient() {
   }, []);
 
   useEffect(() => {
-    load();
+    load().finally(() => setLoading(false));
   }, [load]);
 
   return (
@@ -46,14 +48,20 @@ export function AdminCouponsClient() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mt-3">
-        {coupons.map((coupon) => (
-          <CouponRow key={coupon.id} coupon={coupon} onChange={load} />
-        ))}
-        {coupons.length === 0 && (
-          <div className="text-xs text-mocha text-center pt-6 lg:col-span-2">No coupons yet.</div>
-        )}
-      </div>
+      {loading ? (
+        <div className="flex justify-center pt-10">
+          <Spinner className="h-6 w-6 text-mocha" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mt-3">
+          {coupons.map((coupon) => (
+            <CouponRow key={coupon.id} coupon={coupon} onChange={load} />
+          ))}
+          {coupons.length === 0 && (
+            <div className="text-xs text-mocha text-center pt-6 lg:col-span-2">No coupons yet.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -117,7 +125,12 @@ function AddCouponForm({ onCreated }: { onCreated: () => void }) {
         </label>
       </div>
       {error && <div className="text-[11px] text-strawberry">{error}</div>}
-      <button onClick={submit} disabled={submitting} className="btn-primary text-xs py-2 disabled:opacity-60">
+      <button
+        onClick={submit}
+        disabled={submitting}
+        className="btn-primary text-xs py-2 disabled:opacity-60 flex items-center justify-center gap-2"
+      >
+        {submitting && <Spinner className="h-3.5 w-3.5" />}
         {submitting ? "Creating..." : "Create coupon"}
       </button>
     </div>
@@ -125,14 +138,27 @@ function AddCouponForm({ onCreated }: { onCreated: () => void }) {
 }
 
 function CouponRow({ coupon, onChange }: { coupon: Coupon; onChange: () => void }) {
+  const [busyField, setBusyField] = useState<keyof Coupon | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   async function toggle(field: keyof Coupon) {
-    await patchCoupon(coupon.id, { [toApiKey(field)]: !coupon[field] });
-    onChange();
+    setBusyField(field);
+    try {
+      await patchCoupon(coupon.id, { [toApiKey(field)]: !coupon[field] });
+      onChange();
+    } finally {
+      setBusyField(null);
+    }
   }
 
   async function remove() {
-    await fetch(`/api/admin/coupons/${coupon.id}`, { method: "DELETE" });
-    onChange();
+    setDeleting(true);
+    try {
+      await fetch(`/api/admin/coupons/${coupon.id}`, { method: "DELETE" });
+      onChange();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -142,12 +168,34 @@ function CouponRow({ coupon, onChange }: { coupon: Coupon; onChange: () => void 
           <span className="text-xs font-medium text-espresso truncate block">{coupon.name}</span>
           <span className="text-[10px] text-mocha mt-0.5 block">{Number(coupon.discount_percent)}% off</span>
         </div>
-        <button onClick={remove} className="text-[11px] text-strawberry flex-shrink-0 ml-2">Delete</button>
+        <button
+          onClick={remove}
+          disabled={deleting}
+          className="text-[11px] text-strawberry flex-shrink-0 ml-2 flex items-center gap-1 disabled:opacity-60"
+        >
+          {deleting && <Spinner className="h-2.5 w-2.5" />}
+          Delete
+        </button>
       </div>
       <div className="flex flex-wrap gap-1.5 mt-2.5">
-        <Toggle label="Active" on={coupon.is_active} onClick={() => toggle("is_active")} />
-        <Toggle label="POS" on={coupon.show_on_pos} onClick={() => toggle("show_on_pos")} />
-        <Toggle label="Web menu" on={coupon.show_on_web} onClick={() => toggle("show_on_web")} />
+        <Toggle
+          label="Active"
+          on={coupon.is_active}
+          busy={busyField === "is_active"}
+          onClick={() => toggle("is_active")}
+        />
+        <Toggle
+          label="POS"
+          on={coupon.show_on_pos}
+          busy={busyField === "show_on_pos"}
+          onClick={() => toggle("show_on_pos")}
+        />
+        <Toggle
+          label="Web menu"
+          on={coupon.show_on_web}
+          busy={busyField === "show_on_web"}
+          onClick={() => toggle("show_on_web")}
+        />
       </div>
     </div>
   );
@@ -162,12 +210,26 @@ function toApiKey(field: keyof Coupon): string {
   return map[field] ?? field;
 }
 
-function Toggle({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+function Toggle({
+  label,
+  on,
+  busy = false,
+  onClick,
+}: {
+  label: string;
+  on: boolean;
+  busy?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`chip ${on ? "bg-gold text-chocolate font-medium" : "bg-vanilla text-mocha"}`}
+      disabled={busy}
+      className={`chip flex items-center gap-1.5 disabled:opacity-60 ${
+        on ? "bg-gold text-chocolate font-medium" : "bg-vanilla text-mocha"
+      }`}
     >
+      {busy && <Spinner className="h-3 w-3" />}
       {label}
     </button>
   );

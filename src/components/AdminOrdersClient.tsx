@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Order, OrderItem, OrderSource } from "@/lib/types";
+import { Spinner } from "@/components/Spinner";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -23,6 +24,7 @@ function SourceBadge({ source }: { source: OrderSource }) {
 export function AdminOrdersClient() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/orders", { cache: "no-store" });
@@ -32,7 +34,7 @@ export function AdminOrdersClient() {
   }, []);
 
   useEffect(() => {
-    load();
+    load().finally(() => setLoading(false));
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, [load]);
@@ -65,6 +67,11 @@ export function AdminOrdersClient() {
         <span className="chip bg-vanilla text-mocha">In kitchen &middot; {inKitchen.length}</span>
       </div>
 
+      {loading ? (
+        <div className="flex justify-center pt-10">
+          <Spinner className="h-6 w-6 text-mocha" />
+        </div>
+      ) : (
       <div className="sm:grid sm:grid-cols-2 sm:gap-6">
       <div>
       <div className="text-[10px] uppercase tracking-wide text-mocha mb-2">Waiting at counter</div>
@@ -101,8 +108,9 @@ export function AdminOrdersClient() {
               <button
                 onClick={() => act(order.id, "mark_paid")}
                 disabled={busyId === order.id}
-                className="chip bg-gold text-chocolate font-medium disabled:opacity-60"
+                className="chip bg-gold text-chocolate font-medium disabled:opacity-60 flex items-center gap-1.5"
               >
+                {busyId === order.id && <Spinner className="h-3 w-3" />}
                 Mark as paid
               </button>
             </div>
@@ -155,16 +163,18 @@ export function AdminOrdersClient() {
                 <button
                   onClick={() => act(order.id, "mark_ready")}
                   disabled={busyId === order.id}
-                  className="chip bg-pistachio text-[#EAF3DE] font-medium disabled:opacity-60"
+                  className="chip bg-pistachio text-[#EAF3DE] font-medium disabled:opacity-60 flex items-center gap-1.5"
                 >
+                  {busyId === order.id && <Spinner className="h-3 w-3" />}
                   Mark ready
                 </button>
               ) : (
                 <button
                   onClick={() => act(order.id, "mark_completed")}
                   disabled={busyId === order.id}
-                  className="chip bg-gold text-chocolate font-medium disabled:opacity-60"
+                  className="chip bg-gold text-chocolate font-medium disabled:opacity-60 flex items-center gap-1.5"
                 >
+                  {busyId === order.id && <Spinner className="h-3 w-3" />}
                   Complete
                 </button>
               )}
@@ -174,6 +184,7 @@ export function AdminOrdersClient() {
       </div>
       </div>
       </div>
+      )}
     </div>
   );
 }

@@ -33,8 +33,7 @@ export function Receipt({ order, items }: { order: ReceiptOrder; items: ReceiptI
     <div id="pos-receipt" className="bg-white text-black font-mono text-[11px] leading-snug px-2 py-3">
       <div className="flex flex-col items-center text-center gap-1 mb-1.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={BUSINESS_INFO.logoUrl} alt="" className="h-10 w-auto" />
-        <div className="font-bold text-[13px]">{BUSINESS_INFO.name}</div>
+        <img src={BUSINESS_INFO.logoUrl} alt={BUSINESS_INFO.name} className="h-10 w-auto" />
         <div className="text-[10px]">{BUSINESS_INFO.legalName}</div>
         {BUSINESS_INFO.addressLines.map((line) => (
           <div key={line}>{line}</div>

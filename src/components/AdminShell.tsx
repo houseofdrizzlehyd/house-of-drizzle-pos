@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Spinner } from "@/components/Spinner";
 
 const NAV = [
   { href: "/admin/orders", label: "Orders" },
@@ -15,10 +17,13 @@ const NAV = [
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {
+    setSigningOut(true);
     const supabase = createClient();
     await supabase.auth.signOut();
+    // Keep the spinner running through the redirect.
     router.push("/admin/login");
     router.refresh();
   }
@@ -43,7 +48,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </div>
-        <button onClick={signOut} className="text-xs sm:text-sm text-gold px-2.5 py-2 sm:mt-auto">
+        <button
+          onClick={signOut}
+          disabled={signingOut}
+          className="text-xs sm:text-sm text-gold px-2.5 py-2 sm:mt-auto flex items-center justify-center gap-1.5 disabled:opacity-60"
+        >
+          {signingOut && <Spinner className="h-3 w-3" />}
           Sign out
         </button>
       </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category, Product, Topping } from "@/lib/types";
 import { Receipt, type ReceiptItem, type ReceiptOrder } from "@/components/Receipt";
+import { Spinner } from "@/components/Spinner";
 
 type ReceiptData = { order: ReceiptOrder; items: ReceiptItem[] };
 
@@ -57,6 +58,7 @@ export function AdminPosClient() {
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [menuLoading, setMenuLoading] = useState(true);
 
   const loadMenu = useCallback(async () => {
     const res = await fetch("/api/admin/menu", { cache: "no-store" });
@@ -74,8 +76,7 @@ export function AdminPosClient() {
   }, []);
 
   useEffect(() => {
-    loadMenu();
-    loadCoupons();
+    Promise.all([loadMenu(), loadCoupons()]).finally(() => setMenuLoading(false));
     setHydrated(true);
   }, [loadMenu, loadCoupons]);
 
@@ -194,8 +195,9 @@ export function AdminPosClient() {
             <button
               onClick={printBill}
               disabled={!lastReceipt || receiptLoading}
-              className="chip bg-vanilla text-mocha border border-gold disabled:opacity-60"
+              className="chip bg-vanilla text-mocha border border-gold disabled:opacity-60 flex items-center gap-1.5"
             >
+              {receiptLoading && <Spinner className="h-3 w-3" />}
               {receiptLoading ? "Preparing bill..." : "Print bill"}
             </button>
             <button
@@ -229,23 +231,29 @@ export function AdminPosClient() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {filtered.map((product) => (
-              <ItemPicker
-                key={product.id}
-                product={product}
-                categoryName={categories.find((c) => c.id === product.category_id)?.name ?? ""}
-                expanded={expandedProductId === product.id}
-                onToggleExpand={() =>
-                  setExpandedProductId((cur) => (cur === product.id ? null : product.id))
-                }
-                onAdd={(toppings, qty) => addToCart(product, toppings, qty)}
-              />
-            ))}
-            {filtered.length === 0 && (
-              <div className="text-xs text-mocha text-center pt-6 sm:col-span-2">No items found.</div>
-            )}
-          </div>
+          {menuLoading ? (
+            <div className="flex justify-center pt-10">
+              <Spinner className="h-6 w-6 text-mocha" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {filtered.map((product) => (
+                <ItemPicker
+                  key={product.id}
+                  product={product}
+                  categoryName={categories.find((c) => c.id === product.category_id)?.name ?? ""}
+                  expanded={expandedProductId === product.id}
+                  onToggleExpand={() =>
+                    setExpandedProductId((cur) => (cur === product.id ? null : product.id))
+                  }
+                  onAdd={(toppings, qty) => addToCart(product, toppings, qty)}
+                />
+              ))}
+              {filtered.length === 0 && (
+                <div className="text-xs text-mocha text-center pt-6 sm:col-span-2">No items found.</div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="lg:w-80 flex-shrink-0">
@@ -347,7 +355,12 @@ export function AdminPosClient() {
                 className="bg-cream rounded-lg px-3 py-2 text-xs outline-none"
               />
               {error && <div className="text-[11px] text-strawberry">{error}</div>}
-              <button onClick={confirmSale} disabled={submitting} className="btn-primary text-xs py-2 disabled:opacity-60">
+              <button
+                onClick={confirmSale}
+                disabled={submitting}
+                className="btn-primary text-xs py-2 disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {submitting && <Spinner className="h-3.5 w-3.5" />}
                 {submitting ? "Processing..." : "Collect payment & confirm"}
               </button>
             </div>

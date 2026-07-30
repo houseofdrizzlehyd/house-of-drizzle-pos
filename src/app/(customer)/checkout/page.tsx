@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
+import { Spinner } from "@/components/Spinner";
 
 type WebCoupon = { id: string; name: string; discount_percent: number };
 
@@ -56,10 +57,11 @@ export default function CheckoutPage() {
       }
       const { orderId } = await res.json();
       clearCart();
+      // Keep the spinner running through the redirect instead of flashing
+      // back to idle before the order status page has loaded.
       router.push(`/order/${orderId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -163,7 +165,12 @@ export default function CheckoutPage() {
       {error && <div className="px-4 pt-3 text-xs text-strawberry">{error}</div>}
 
       <div className="px-4 pt-4">
-        <button onClick={placeOrder} disabled={submitting} className="btn-primary w-full disabled:opacity-60">
+        <button
+          onClick={placeOrder}
+          disabled={submitting}
+          className="btn-primary w-full disabled:opacity-60 flex items-center justify-center gap-2"
+        >
+          {submitting && <Spinner className="h-4 w-4" />}
           {submitting ? "Placing order..." : "Place order"}
         </button>
         <div className="text-center text-[10px] text-mocha mt-2">

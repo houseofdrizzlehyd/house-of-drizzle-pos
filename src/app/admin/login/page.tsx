@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Spinner } from "@/components/Spinner";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -17,11 +18,13 @@ export default function AdminLoginPage() {
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError("Incorrect email or password.");
       return;
     }
+    // Keep the spinner running through the redirect so the button doesn't
+    // flash back to idle while the admin section loads.
     router.push("/admin/orders");
     router.refresh();
   }
@@ -51,7 +54,12 @@ export default function AdminLoginPage() {
             className="w-full bg-vanilla rounded-lg px-3 py-2.5 text-sm text-espresso outline-none placeholder:text-mocha"
           />
           {error && <div className="text-xs text-strawberry">{error}</div>}
-          <button type="submit" disabled={loading} className="btn-primary disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {loading && <Spinner className="h-4 w-4" />}
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </div>

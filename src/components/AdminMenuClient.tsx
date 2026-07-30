@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Category, Product, Topping } from "@/lib/types";
+import { Spinner } from "@/components/Spinner";
 
 type ProductWithToppings = Product & { toppings: Topping[] };
 
@@ -28,6 +29,8 @@ export function AdminMenuClient() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [addingCategory, setAddingCategory] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/menu", { cache: "no-store" });
@@ -38,19 +41,24 @@ export function AdminMenuClient() {
   }, []);
 
   useEffect(() => {
-    load();
+    load().finally(() => setLoading(false));
   }, [load]);
 
   async function addCategory() {
     const name = newCategoryName.trim();
     if (!name) return;
-    await fetch("/api/admin/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    setNewCategoryName("");
-    load();
+    setAddingCategory(true);
+    try {
+      await fetch("/api/admin/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      setNewCategoryName("");
+      await load();
+    } finally {
+      setAddingCategory(false);
+    }
   }
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
@@ -80,7 +88,12 @@ export function AdminMenuClient() {
             placeholder="New category name"
             className="flex-1 bg-vanilla rounded-lg px-3 py-2 text-xs text-espresso outline-none placeholder:text-mocha"
           />
-          <button onClick={addCategory} className="chip bg-vanilla text-mocha border border-gold flex-shrink-0">
+          <button
+            onClick={addCategory}
+            disabled={addingCategory}
+            className="chip bg-vanilla text-mocha border border-gold flex-shrink-0 flex items-center gap-1.5 disabled:opacity-60"
+          >
+            {addingCategory && <Spinner className="h-3 w-3" />}
             Add category
           </button>
         </div>
@@ -98,19 +111,25 @@ export function AdminMenuClient() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mt-3">
-        {filtered.map((product) => (
-          <ProductRow
-            key={product.id}
-            product={product}
-            categoryName={categories.find((c) => c.id === product.category_id)?.name ?? ""}
-            onChange={load}
-          />
-        ))}
-        {filtered.length === 0 && (
-          <div className="text-xs text-mocha text-center pt-6 lg:col-span-2">No items found.</div>
-        )}
-      </div>
+      {loading ? (
+        <div className="flex justify-center pt-10">
+          <Spinner className="h-6 w-6 text-mocha" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mt-3">
+          {filtered.map((product) => (
+            <ProductRow
+              key={product.id}
+              product={product}
+              categoryName={categories.find((c) => c.id === product.category_id)?.name ?? ""}
+              onChange={load}
+            />
+          ))}
+          {filtered.length === 0 && (
+            <div className="text-xs text-mocha text-center pt-6 lg:col-span-2">No items found.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -215,7 +234,12 @@ function AddItemForm({
         />
       </label>
       {error && <div className="text-[11px] text-strawberry">{error}</div>}
-      <button onClick={submit} disabled={submitting} className="btn-primary text-xs py-2 disabled:opacity-60">
+      <button
+        onClick={submit}
+        disabled={submitting}
+        className="btn-primary text-xs py-2 disabled:opacity-60 flex items-center justify-center gap-2"
+      >
+        {submitting && <Spinner className="h-3.5 w-3.5" />}
         {submitting ? "Creating..." : "Create item"}
       </button>
     </div>
@@ -242,22 +266,36 @@ function ProductRow({
   const [editImageUrl, setEditImageUrl] = useState(product.image_url ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [busyField, setBusyField] = useState<keyof Product | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [addingTopping, setAddingTopping] = useState(false);
+  const [removingToppingId, setRemovingToppingId] = useState<string | null>(null);
 
   async function toggle(field: keyof Product) {
-    await patchProduct(product.id, { [field]: !product[field] });
-    onChange();
+    setBusyField(field);
+    try {
+      await patchProduct(product.id, { [field]: !product[field] });
+      onChange();
+    } finally {
+      setBusyField(null);
+    }
   }
 
   async function saveEdit() {
-    await patchProduct(product.id, {
-      name: editName.trim(),
-      price: Number(editPrice) || 0,
-      description: editDescription.trim() || null,
-      gst_rate: Number(editGstRate) || 0,
-      image_url: editImageUrl.trim() || null,
-    });
-    setShowEdit(false);
-    onChange();
+    setSaving(true);
+    try {
+      await patchProduct(product.id, {
+        name: editName.trim(),
+        price: Number(editPrice) || 0,
+        description: editDescription.trim() || null,
+        gst_rate: Number(editGstRate) || 0,
+        image_url: editImageUrl.trim() || null,
+      });
+      setShowEdit(false);
+      onChange();
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handlePhotoPick(file: File | undefined) {
@@ -278,23 +316,33 @@ function ProductRow({
 
   async function addTopping() {
     if (!toppingName.trim()) return;
-    await fetch("/api/admin/toppings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        productId: product.id,
-        name: toppingName.trim(),
-        price: Number(toppingPrice) || 0,
-      }),
-    });
-    setToppingName("");
-    setToppingPrice("");
-    onChange();
+    setAddingTopping(true);
+    try {
+      await fetch("/api/admin/toppings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          name: toppingName.trim(),
+          price: Number(toppingPrice) || 0,
+        }),
+      });
+      setToppingName("");
+      setToppingPrice("");
+      onChange();
+    } finally {
+      setAddingTopping(false);
+    }
   }
 
   async function removeTopping(id: string) {
-    await fetch(`/api/admin/toppings/${id}`, { method: "DELETE" });
-    onChange();
+    setRemovingToppingId(id);
+    try {
+      await fetch(`/api/admin/toppings/${id}`, { method: "DELETE" });
+      onChange();
+    } finally {
+      setRemovingToppingId(null);
+    }
   }
 
   return (
@@ -358,7 +406,8 @@ function ProductRow({
                 <img src={editImageUrl} alt="" className="w-full h-full object-cover" />
               ) : null}
             </div>
-            <label className="chip bg-cream text-mocha border border-gold cursor-pointer">
+            <label className="chip bg-cream text-mocha border border-gold cursor-pointer flex items-center gap-1.5">
+              {uploading && <Spinner className="h-3 w-3" />}
               {uploading ? "Uploading..." : "Upload photo"}
               <input
                 type="file"
@@ -370,20 +419,44 @@ function ProductRow({
             </label>
           </div>
           {uploadError && <div className="text-[11px] text-strawberry">{uploadError}</div>}
-          <button onClick={saveEdit} className="chip bg-gold text-chocolate font-medium self-start">Save</button>
+          <button
+            onClick={saveEdit}
+            disabled={saving}
+            className="chip bg-gold text-chocolate font-medium self-start flex items-center gap-1.5 disabled:opacity-60"
+          >
+            {saving && <Spinner className="h-3 w-3" />}
+            Save
+          </button>
         </div>
       )}
 
       <div className="flex gap-1.5 mt-2 flex-wrap">
-        <ToggleChip label="Special" active={product.is_todays_special} onClick={() => toggle("is_todays_special")} />
-        <ToggleChip label="Must try" active={product.is_must_try} onClick={() => toggle("is_must_try")} />
-        <ToggleChip label="Reward dish" active={product.is_reward_dish} onClick={() => toggle("is_reward_dish")} />
+        <ToggleChip
+          label="Special"
+          active={product.is_todays_special}
+          busy={busyField === "is_todays_special"}
+          onClick={() => toggle("is_todays_special")}
+        />
+        <ToggleChip
+          label="Must try"
+          active={product.is_must_try}
+          busy={busyField === "is_must_try"}
+          onClick={() => toggle("is_must_try")}
+        />
+        <ToggleChip
+          label="Reward dish"
+          active={product.is_reward_dish}
+          busy={busyField === "is_reward_dish"}
+          onClick={() => toggle("is_reward_dish")}
+        />
         <button
           onClick={() => toggle("is_available")}
-          className={`chip ml-auto font-medium ${
+          disabled={busyField === "is_available"}
+          className={`chip ml-auto font-medium flex items-center gap-1.5 disabled:opacity-60 ${
             product.is_available ? "bg-pistachio text-[#EAF3DE]" : "bg-mocha text-vanilla"
           }`}
         >
+          {busyField === "is_available" && <Spinner className="h-3 w-3" />}
           {product.is_available ? "Available" : "Sold out"}
         </button>
       </div>
@@ -393,7 +466,14 @@ function ProductRow({
           {product.toppings.map((t) => (
             <div key={t.id} className="flex items-center justify-between text-[11px]">
               <span className="text-espresso">{t.name} &middot; +Rs {Number(t.price).toFixed(0)}</span>
-              <button onClick={() => removeTopping(t.id)} className="text-mocha">Remove</button>
+              <button
+                onClick={() => removeTopping(t.id)}
+                disabled={removingToppingId === t.id}
+                className="text-mocha flex items-center gap-1 disabled:opacity-60"
+              >
+                {removingToppingId === t.id && <Spinner className="h-2.5 w-2.5" />}
+                Remove
+              </button>
             </div>
           ))}
           <div className="flex gap-1.5 mt-1">
@@ -409,7 +489,14 @@ function ProductRow({
               placeholder="+Rs"
               className="bg-cream rounded-lg px-2 py-1.5 text-[11px] outline-none w-16"
             />
-            <button onClick={addTopping} className="chip bg-gold text-chocolate">Add</button>
+            <button
+              onClick={addTopping}
+              disabled={addingTopping}
+              className="chip bg-gold text-chocolate flex items-center gap-1.5 disabled:opacity-60"
+            >
+              {addingTopping && <Spinner className="h-3 w-3" />}
+              Add
+            </button>
           </div>
         </div>
       )}
@@ -417,12 +504,26 @@ function ProductRow({
   );
 }
 
-function ToggleChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function ToggleChip({
+  label,
+  active,
+  busy = false,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  busy?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`chip ${active ? "bg-gold text-chocolate font-medium" : "bg-cream text-mocha border border-gold"}`}
+      disabled={busy}
+      className={`chip flex items-center gap-1.5 disabled:opacity-60 ${
+        active ? "bg-gold text-chocolate font-medium" : "bg-cream text-mocha border border-gold"
+      }`}
     >
+      {busy && <Spinner className="h-3 w-3" />}
       {label}
     </button>
   );
