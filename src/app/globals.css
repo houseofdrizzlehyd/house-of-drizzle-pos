@@ -60,3 +60,33 @@ body {
     animation: none;
   }
 }
+
+/* Thermal receipt printing (3-inch / ~72mm roll printers). The receipt
+   markup is always in the DOM but kept off-screen; when printing, only it
+   becomes visible and is pinned to the page at full width. */
+#pos-receipt {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 72mm;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #pos-receipt,
+  #pos-receipt * {
+    visibility: visible;
+  }
+  #pos-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 72mm;
+  }
+  @page {
+    size: 72mm auto;
+    margin: 2mm;
+  }
+}

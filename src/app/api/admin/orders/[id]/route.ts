@@ -5,6 +5,27 @@ import { createServiceClient } from "@/lib/supabase/server";
 const ALLOWED_ACTIONS = ["mark_paid", "mark_ready", "mark_completed"] as const;
 type Action = (typeof ALLOWED_ACTIONS)[number];
 
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdmin();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const supabase = createServiceClient();
+
+  const { data: order, error: orderError } = await supabase.from("orders").select("*").eq("id", id).single();
+  if (orderError || !order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
+
+  const { data: items } = await supabase.from("order_items").select("*").eq("order_id", id).order("created_at");
+
+  let couponName: string | null = null;
+  if (order.coupon_id) {
+    const { data: coupon } = await supabase.from("coupons").select("name").eq("id", order.coupon_id).maybeSingle();
+    couponName = coupon?.name ?? null;
+  }
+
+  return NextResponse.json({ order: { ...order, coupon_name: couponName }, items: items ?? [] });
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdmin();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category, Product, Topping } from "@/lib/types";
+import { Receipt, type ReceiptItem, type ReceiptOrder } from "@/components/Receipt";
+
+type ReceiptData = { order: ReceiptOrder; items: ReceiptItem[] };
 
 type ProductWithToppings = Product & { toppings: Topping[] };
 type CartLine = {
@@ -12,8 +15,28 @@ type CartLine = {
 };
 type PosCoupon = { id: string; name: string; discount_percent: number };
 
+type PosDraft = {
+  cart: CartLine[];
+  name: string;
+  mobile: string;
+  selectedCouponId: string | null;
+};
+
+const DRAFT_STORAGE_KEY = "hod_pos_draft_v1";
+
 function lineKey(productId: string, toppingIds: string[]) {
   return `${productId}::${[...toppingIds].sort().join(",")}`;
+}
+
+function loadDraft(): PosDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PosDraft;
+  } catch {
+    return null;
+  }
 }
 
 export function AdminPosClient() {
@@ -22,14 +45,18 @@ export function AdminPosClient() {
   const [query, setQuery] = useState("");
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
 
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const initialDraft = useMemo(() => loadDraft(), []);
+  const [cart, setCart] = useState<CartLine[]>(initialDraft?.cart ?? []);
   const [coupons, setCoupons] = useState<PosCoupon[]>([]);
-  const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
+  const [selectedCouponId, setSelectedCouponId] = useState<string | null>(initialDraft?.selectedCouponId ?? null);
+  const [name, setName] = useState(initialDraft?.name ?? "");
+  const [mobile, setMobile] = useState(initialDraft?.mobile ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmedOrder, setConfirmedOrder] = useState<{ orderNumber: number } | null>(null);
+  const [confirmedOrder, setConfirmedOrder] = useState<{ orderId: string; orderNumber: number } | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   const loadMenu = useCallback(async () => {
     const res = await fetch("/api/admin/menu", { cache: "no-store" });
@@ -49,7 +76,22 @@ export function AdminPosClient() {
   useEffect(() => {
     loadMenu();
     loadCoupons();
+    setHydrated(true);
   }, [loadMenu, loadCoupons]);
+
+  // Keep the in-progress sale saved as a draft so switching to another admin
+  // tab (Orders, Menu, Reports...) and back doesn't lose it.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (cart.length === 0 && !name && !mobile && !selectedCouponId) {
+      window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(
+      DRAFT_STORAGE_KEY,
+      JSON.stringify({ cart, name, mobile, selectedCouponId })
+    );
+  }, [hydrated, cart, name, mobile, selectedCouponId]);
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
 
@@ -112,7 +154,9 @@ export function AdminPosClient() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? "Could not create sale.");
-      setConfirmedOrder({ orderNumber: body.orderNumber });
+      setConfirmedOrder({ orderId: body.orderId, orderNumber: body.orderNumber });
+      setLastReceipt(null);
+      loadReceipt(body.orderId);
       setCart([]);
       setName("");
       setMobile("");
@@ -124,16 +168,48 @@ export function AdminPosClient() {
     }
   }
 
+  async function loadReceipt(orderId: string) {
+    setReceiptLoading(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const body = await res.json();
+      setLastReceipt({ order: body.order, items: body.items });
+    } finally {
+      setReceiptLoading(false);
+    }
+  }
+
+  function printBill() {
+    window.print();
+  }
+
   if (confirmedOrder) {
     return (
       <div className="p-3 sm:p-6">
         <div className="card max-w-sm mx-auto text-center py-8">
           <div className="text-sm text-mocha">Order placed &amp; paid</div>
           <div className="text-2xl font-semibold text-chocolate mt-1">#{confirmedOrder.orderNumber}</div>
-          <button onClick={() => setConfirmedOrder(null)} className="btn-primary mt-5 px-6">
-            New sale
-          </button>
+          <div className="flex items-center justify-center gap-2 mt-5">
+            <button
+              onClick={printBill}
+              disabled={!lastReceipt || receiptLoading}
+              className="chip bg-vanilla text-mocha border border-gold disabled:opacity-60"
+            >
+              {receiptLoading ? "Preparing bill..." : "Print bill"}
+            </button>
+            <button
+              onClick={() => {
+                setConfirmedOrder(null);
+                setLastReceipt(null);
+              }}
+              className="btn-primary px-6"
+            >
+              New sale
+            </button>
+          </div>
         </div>
+        {lastReceipt && <Receipt order={lastReceipt.order} items={lastReceipt.items} />}
       </div>
     );
   }
