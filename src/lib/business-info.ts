@@ -1,10 +1,10 @@
-// Printed on every POS receipt. Update these with the real registered
-// details before going live with printing — placeholders are marked below.
+// Printed on every POS receipt.
 export const BUSINESS_INFO = {
   name: "House of Drizzle",
-  addressLines: ["<Store address line 1>", "<Store address line 2, City, PIN>"],
-  phone: "<Store phone number>",
-  gstin: "<GSTIN>",
-  logoUrl: "/brand/logo-mark.png",
+  legalName: "JAISVIK FOODS",
+  addressLines: ["Plot no-156, Vaidehinagar,", "Vanasthalipuram, Hyderabad-500070"],
+  phone: "9494648974",
+  gstin: "36AVAPV6108M1Z6",
+  logoUrl: "/brand/receipt-logo.png",
   thankYouMessage: "Thank you for visiting House of Drizzle! Sip, Scoop, Drizzle, Repeat.",
 };

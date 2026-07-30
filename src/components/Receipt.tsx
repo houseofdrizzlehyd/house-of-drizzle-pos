@@ -35,6 +35,7 @@ export function Receipt({ order, items }: { order: ReceiptOrder; items: ReceiptI
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={BUSINESS_INFO.logoUrl} alt="" className="h-10 w-auto" />
         <div className="font-bold text-[13px]">{BUSINESS_INFO.name}</div>
+        <div className="text-[10px]">{BUSINESS_INFO.legalName}</div>
         {BUSINESS_INFO.addressLines.map((line) => (
           <div key={line}>{line}</div>
         ))}
