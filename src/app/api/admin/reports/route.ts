@@ -49,6 +49,9 @@ export async function GET(request: Request) {
   const ordersCount = (orders ?? []).length;
   const avgOrderValue = ordersCount ? grossSales / ordersCount : 0;
   const rewardsGiven = (orders ?? []).filter((o) => o.reward_applied === "free_dish").length;
+  const discountsGiven = (orders ?? []).reduce((s, o) => s + Number(o.discount_amount ?? 0), 0);
+  const posOrdersCount = (orders ?? []).filter((o) => o.source === "pos").length;
+  const webOrdersCount = ordersCount - posOrdersCount;
 
   const taxBreakup = sumTaxBreakups(
     (items ?? []).map((i) => computeTaxBreakup(Number(i.line_total), Number(i.gst_rate)))
@@ -69,6 +72,9 @@ export async function GET(request: Request) {
     ordersCount,
     avgOrderValue,
     rewardsGiven,
+    discountsGiven,
+    posOrdersCount,
+    webOrdersCount,
     taxBreakup,
     topItems,
   });

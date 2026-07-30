@@ -70,6 +70,20 @@ create table if not exists customers (
 );
 
 -- ---------------------------------------------------------------------------
+-- Coupons (percentage-off, admin controls whether shown on POS, web, or both)
+-- ---------------------------------------------------------------------------
+
+create table if not exists coupons (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  discount_percent numeric(5,2) not null,
+  is_active boolean not null default true,
+  show_on_pos boolean not null default false,
+  show_on_web boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- Orders
 -- ---------------------------------------------------------------------------
 
@@ -83,9 +97,12 @@ create table if not exists orders (
   customer_mobile text not null,
   status text not null default 'placed' check (status in ('placed','preparing','ready','completed')),
   is_paid boolean not null default false,
-  subtotal numeric(10,2) not null,        -- final amount to collect (reward items counted as 0)
+  subtotal numeric(10,2) not null,        -- final amount to collect, post-discount (reward items counted as 0)
   reward_applied text not null default 'none' check (reward_applied in ('none','free_dish')),
   reward_product_id uuid references products(id),
+  source text not null default 'web' check (source in ('web','pos')),
+  coupon_id uuid references coupons(id),
+  discount_amount numeric(10,2) not null default 0,
   created_at timestamptz not null default now(),
   paid_at timestamptz,
   ready_at timestamptz,
@@ -131,6 +148,7 @@ alter table settings enable row level security;
 alter table customers enable row level security;
 alter table orders enable row level security;
 alter table order_items enable row level security;
+alter table coupons enable row level security;
 
 create policy "public can read categories" on categories
   for select using (true);
@@ -141,6 +159,9 @@ create policy "public can read products" on products
 create policy "public can read toppings" on toppings
   for select using (true);
 
--- settings, customers, orders, order_items: intentionally no policies, so
--- only the service role (used exclusively in trusted server code) can touch
--- them. Do not add anon/authenticated policies to these tables.
+-- settings, customers, orders, order_items, coupons: intentionally no
+-- policies, so only the service role (used exclusively in trusted server
+-- code) can touch them. Coupons are fetched for display via a server-side
+-- API route (/api/coupons) that filters by channel and active status before
+-- returning anything to the browser — never expose this table to anon.
+-- Do not add anon/authenticated policies to these tables.

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
+
+type WebCoupon = { id: string; name: string; discount_percent: number };
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -12,6 +14,19 @@ export default function CheckoutPage() {
   const [mobile, setMobile] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [coupons, setCoupons] = useState<WebCoupon[]>([]);
+  const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/coupons?channel=web")
+      .then((res) => res.json())
+      .then((body) => setCoupons(body.coupons ?? []))
+      .catch(() => {});
+  }, []);
+
+  const selectedCoupon = coupons.find((c) => c.id === selectedCouponId) ?? null;
+  const discountAmount = selectedCoupon ? (subtotal * Number(selectedCoupon.discount_percent)) / 100 : 0;
+  const total = subtotal - discountAmount;
 
   async function placeOrder() {
     setError(null);
@@ -27,6 +42,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           name: name.trim(),
           mobile: mobile.trim(),
+          couponId: selectedCouponId,
           lines: lines.map((l) => ({
             productId: l.product.id,
             quantity: l.quantity,
@@ -85,13 +101,44 @@ export default function CheckoutPage() {
               </div>
             );
           })}
+          {selectedCoupon && (
+            <div className="flex justify-between text-xs text-strawberry">
+              <span>{selectedCoupon.name} ({Number(selectedCoupon.discount_percent)}% off)</span>
+              <span>-Rs {discountAmount.toFixed(0)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-xs font-medium text-chocolate border-t border-gold/50 pt-1.5 mt-1">
             <span>Total</span>
-            <span>Rs {subtotal.toFixed(0)}</span>
+            <span>Rs {total.toFixed(0)}</span>
           </div>
         </div>
         <div className="text-[11px] text-mocha pt-1.5">All prices are inclusive of taxes.</div>
       </div>
+
+      {coupons.length > 0 && (
+        <div className="px-4 pt-3.5">
+          <div className="text-[11px] text-mocha mb-1">Available coupons</div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setSelectedCouponId(null)}
+              className={`chip ${!selectedCouponId ? "bg-gold text-chocolate font-medium" : "bg-vanilla text-mocha"}`}
+            >
+              None
+            </button>
+            {coupons.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCouponId(c.id === selectedCouponId ? null : c.id)}
+                className={`chip ${
+                  selectedCouponId === c.id ? "bg-gold text-chocolate font-medium" : "bg-vanilla text-mocha"
+                }`}
+              >
+                {c.name} &middot; {Number(c.discount_percent)}% off
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="px-4 pt-4">
         <div className="text-[11px] text-mocha mb-1">Your name</div>

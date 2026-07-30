@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Order, OrderItem } from "@/lib/types";
+import type { Order, OrderItem, OrderSource } from "@/lib/types";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -10,6 +10,14 @@ function timeAgo(iso: string) {
   const mins = Math.max(0, Math.round(diffMs / 60000));
   if (mins < 1) return "just now";
   return `${mins} min ago`;
+}
+
+function SourceBadge({ source }: { source: OrderSource }) {
+  return (
+    <span className={`chip ml-1.5 ${source === "pos" ? "bg-mocha text-cream" : "bg-vanilla text-mocha"}`}>
+      {source === "pos" ? "POS" : "Web"}
+    </span>
+  );
 }
 
 export function AdminOrdersClient() {
@@ -68,6 +76,7 @@ export function AdminOrdersClient() {
               <div>
                 <span className="text-sm font-medium text-chocolate">#{order.order_number}</span>
                 <span className="text-[11px] text-mocha ml-1.5">{order.customer_name}</span>
+                <SourceBadge source={order.source} />
               </div>
               <span className="chip bg-strawberry text-[#FBEAF0]">Unpaid</span>
             </div>
@@ -81,7 +90,14 @@ export function AdminOrdersClient() {
               ))}
             </div>
             <div className="flex items-center justify-between mt-2.5">
-              <span className="text-xs font-medium text-chocolate">Rs {Number(order.subtotal).toFixed(0)}</span>
+              <span className="text-xs font-medium text-chocolate">
+                Rs {Number(order.subtotal).toFixed(0)}
+                {Number(order.discount_amount) > 0 && (
+                  <span className="text-[10px] text-strawberry ml-1">
+                    (-Rs {Number(order.discount_amount).toFixed(0)})
+                  </span>
+                )}
+              </span>
               <button
                 onClick={() => act(order.id, "mark_paid")}
                 disabled={busyId === order.id}
@@ -113,6 +129,7 @@ export function AdminOrdersClient() {
               <div>
                 <span className="text-sm font-medium text-chocolate">#{order.order_number}</span>
                 <span className="text-[11px] text-mocha ml-1.5">{order.customer_name}</span>
+                <SourceBadge source={order.source} />
               </div>
               <span className="chip bg-pistachio text-[#EAF3DE]">Paid</span>
             </div>
@@ -126,7 +143,14 @@ export function AdminOrdersClient() {
               ))}
             </div>
             <div className="flex items-center justify-between mt-2.5">
-              <span className="text-xs font-medium text-chocolate">Rs {Number(order.subtotal).toFixed(0)}</span>
+              <span className="text-xs font-medium text-chocolate">
+                Rs {Number(order.subtotal).toFixed(0)}
+                {Number(order.discount_amount) > 0 && (
+                  <span className="text-[10px] text-strawberry ml-1">
+                    (-Rs {Number(order.discount_amount).toFixed(0)})
+                  </span>
+                )}
+              </span>
               {order.status === "preparing" ? (
                 <button
                   onClick={() => act(order.id, "mark_ready")}

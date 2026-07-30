@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { round2 } from "@/lib/tax";
+import { requireAdmin } from "@/lib/admin-auth";
 
 type IncomingLine = {
   productId: string;
@@ -16,6 +18,16 @@ export async function POST(request: Request) {
   const name = String(body.name ?? "").trim();
   const mobile = String(body.mobile ?? "").trim();
   const lines: IncomingLine[] = Array.isArray(body.lines) ? body.lines : [];
+  const source: "web" | "pos" = body.source === "pos" ? "pos" : "web";
+  const couponId = body.couponId ? String(body.couponId) : null;
+  const markPaid = source === "pos" && Boolean(body.markPaid);
+
+  // POS orders are created by an authenticated admin/staff session; web
+  // orders come from anonymous customers and skip this check entirely.
+  if (source === "pos") {
+    const user = await requireAdmin();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   if (!name) return NextResponse.json({ error: "Name is required." }, { status: 400 });
   if (!/^[0-9]{10}$/.test(mobile)) {
@@ -154,7 +166,28 @@ export async function POST(request: Request) {
     }
   }
 
-  const subtotal = orderItems.reduce((s, i) => s + i.line_total, 0);
+  // Coupon: validate server-side against the requested channel — never
+  // trust a client-sent discount percent. Free reward items are already 0
+  // and are left untouched; the discount scales only the paid line totals.
+  let appliedCouponId: string | null = null;
+  let discountAmount = 0;
+
+  if (couponId) {
+    const { data: coupon } = await supabase.from("coupons").select("*").eq("id", couponId).maybeSingle();
+    const channelOk = coupon && (source === "pos" ? coupon.show_on_pos : coupon.show_on_web);
+    if (coupon && coupon.is_active && channelOk) {
+      appliedCouponId = coupon.id;
+      const factor = 1 - Number(coupon.discount_percent) / 100;
+      for (const item of orderItems) {
+        if (item.is_free_reward) continue;
+        const scaled = round2(item.line_total * factor);
+        discountAmount = round2(discountAmount + (item.line_total - scaled));
+        item.line_total = scaled;
+      }
+    }
+  }
+
+  const subtotal = round2(orderItems.reduce((s, i) => s + i.line_total, 0));
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -162,11 +195,15 @@ export async function POST(request: Request) {
       customer_id: customerId,
       customer_name: name,
       customer_mobile: mobile,
-      status: "placed",
-      is_paid: false,
+      status: markPaid ? "preparing" : "placed",
+      is_paid: markPaid,
       subtotal,
       reward_applied: rewardApplied,
       reward_product_id: rewardProductId,
+      source,
+      coupon_id: appliedCouponId,
+      discount_amount: discountAmount,
+      ...(markPaid ? { paid_at: new Date().toISOString() } : {}),
     })
     .select()
     .single();

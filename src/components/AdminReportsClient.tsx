@@ -8,6 +8,9 @@ type Report = {
   ordersCount: number;
   avgOrderValue: number;
   rewardsGiven: number;
+  discountsGiven: number;
+  posOrdersCount: number;
+  webOrdersCount: number;
   taxBreakup: { taxableValue: number; cgst: number; sgst: number; totalTax: number };
   topItems: { name: string; quantity: number }[];
 };
@@ -41,6 +44,9 @@ export function AdminReportsClient() {
       ["Orders", String(report.ordersCount)],
       ["Average order value (Rs)", report.avgOrderValue.toFixed(2)],
       ["Rewards given (free dishes)", String(report.rewardsGiven)],
+      ["Discounts given (Rs)", report.discountsGiven.toFixed(2)],
+      ["Web orders", String(report.webOrdersCount)],
+      ["POS orders", String(report.posOrdersCount)],
       ["Taxable value (Rs)", report.taxBreakup.taxableValue.toFixed(2)],
       ["CGST (Rs)", report.taxBreakup.cgst.toFixed(2)],
       ["SGST (Rs)", report.taxBreakup.sgst.toFixed(2)],
@@ -82,11 +88,16 @@ export function AdminReportsClient() {
         <div className="text-xs text-mocha">Loading...</div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
             <Metric label="Gross sales" value={`Rs ${report.grossSales.toFixed(0)}`} />
             <Metric label="Orders" value={String(report.ordersCount)} />
             <Metric label="Avg order value" value={`Rs ${report.avgOrderValue.toFixed(0)}`} />
             <Metric label="Rewards given" value={`${report.rewardsGiven} dishes`} />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+            <Metric label="Discounts given" value={`Rs ${report.discountsGiven.toFixed(0)}`} />
+            <Metric label="Web orders" value={String(report.webOrdersCount)} />
+            <Metric label="POS orders" value={String(report.posOrdersCount)} />
           </div>
 
           <div className="sm:grid sm:grid-cols-2 sm:gap-6 sm:items-start">

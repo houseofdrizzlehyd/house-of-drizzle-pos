@@ -28,6 +28,18 @@ export type Product = {
 
 export type OrderStatus = "placed" | "preparing" | "ready" | "completed";
 
+export type OrderSource = "web" | "pos";
+
+export type Coupon = {
+  id: string;
+  name: string;
+  discount_percent: number;
+  is_active: boolean;
+  show_on_pos: boolean;
+  show_on_web: boolean;
+  created_at: string;
+};
+
 export type Order = {
   id: string;
   order_number: number;
@@ -39,6 +51,9 @@ export type Order = {
   subtotal: number;
   reward_applied: "none" | "free_dish";
   reward_product_id: string | null;
+  source: OrderSource;
+  coupon_id: string | null;
+  discount_amount: number;
   created_at: string;
 };
 
