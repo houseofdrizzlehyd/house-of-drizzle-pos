@@ -138,6 +138,20 @@ export function AdminOrdersClient() {
             {order.order_type === "delivery" && order.delivery_address && (
               <div className="text-[11px] text-mocha mt-1.5">
                 <span className="font-medium text-chocolate">Deliver to:</span> {order.delivery_address}
+                {order.delivery_lat != null && order.delivery_lng != null && (
+                  <>
+                    {" "}
+                    &middot;{" "}
+                    <a
+                      href={`https://www.google.com/maps?q=${order.delivery_lat},${order.delivery_lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-mango underline"
+                    >
+                      View on map
+                    </a>
+                  </>
+                )}
               </div>
             )}
             <div className="flex items-center justify-between mt-2.5">
@@ -213,6 +227,20 @@ export function AdminOrdersClient() {
             {order.order_type === "delivery" && order.delivery_address && (
               <div className="text-[11px] text-mocha mt-1.5">
                 <span className="font-medium text-chocolate">Deliver to:</span> {order.delivery_address}
+                {order.delivery_lat != null && order.delivery_lng != null && (
+                  <>
+                    {" "}
+                    &middot;{" "}
+                    <a
+                      href={`https://www.google.com/maps?q=${order.delivery_lat},${order.delivery_lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-mango underline"
+                    >
+                      View on map
+                    </a>
+                  </>
+                )}
               </div>
             )}
             <div className="flex items-center justify-between mt-2.5">

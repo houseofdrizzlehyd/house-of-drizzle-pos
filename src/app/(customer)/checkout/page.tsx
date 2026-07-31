@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { Spinner } from "@/components/Spinner";
 import { DessertPlaceholder } from "@/components/DessertPlaceholder";
+import { LocationPicker, type PickedLocation } from "@/components/LocationPicker";
+import { distanceFromStoreKm } from "@/lib/geo";
 
 type WebCoupon = { id: string; name: string; discount_percent: number };
 type OrderType = "dine_in" | "delivery";
-type DeliverySettings = { minimumOrderAmount: number; deliveryCharge: number };
+type DeliverySettings = { minimumOrderAmount: number; deliveryCharge: number; radiusKm: number };
 
-const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = { minimumOrderAmount: 200, deliveryCharge: 0 };
+const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = { minimumOrderAmount: 200, deliveryCharge: 0, radiusKm: 5 };
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function CheckoutPage() {
   const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [pickedLocation, setPickedLocation] = useState<PickedLocation | null>(null);
   const [deliverySettings, setDeliverySettings] = useState<DeliverySettings>(DEFAULT_DELIVERY_SETTINGS);
 
   useEffect(() => {
@@ -37,6 +40,7 @@ export default function CheckoutPage() {
         setDeliverySettings({
           minimumOrderAmount: Number(body.minimumOrderAmount) || 200,
           deliveryCharge: Number(body.deliveryCharge) || 0,
+          radiusKm: Number(body.radiusKm) || 5,
         })
       )
       .catch(() => {});
@@ -54,9 +58,14 @@ export default function CheckoutPage() {
     if (!/^[0-9]{10}$/.test(mobile.trim())) return setError("Please enter a valid 10-digit mobile number.");
     if (lines.length === 0) return setError("Your cart is empty.");
     if (orderType === "delivery") {
+      if (!pickedLocation) return setError("Please drop a pin on the map for your delivery location.");
       if (!deliveryAddress.trim()) return setError("Please enter your delivery address.");
       if (foodTotal < deliverySettings.minimumOrderAmount) {
         return setError(`Delivery orders need a minimum of Rs ${deliverySettings.minimumOrderAmount}.`);
+      }
+      const km = distanceFromStoreKm(pickedLocation.lat, pickedLocation.lng);
+      if (km > deliverySettings.radiusKm) {
+        return setError(`That location is outside our ${deliverySettings.radiusKm}km delivery range.`);
       }
     }
 
@@ -71,6 +80,8 @@ export default function CheckoutPage() {
           couponId: selectedCouponId,
           orderType,
           deliveryAddress: orderType === "delivery" ? deliveryAddress.trim() : undefined,
+          deliveryLat: orderType === "delivery" ? pickedLocation?.lat : undefined,
+          deliveryLng: orderType === "delivery" ? pickedLocation?.lng : undefined,
           lines: lines.map((l) => ({
             productId: l.product.id,
             quantity: l.quantity,
@@ -184,14 +195,23 @@ export default function CheckoutPage() {
         {orderType === "delivery" && (
           <div className="mt-3">
             <div className="text-[11px] text-mocha mb-1">
-              Delivery address (within ~3km of the store · min. order Rs {deliverySettings.minimumOrderAmount}
+              Delivery location (within ~{deliverySettings.radiusKm}km of the store · min. order Rs{" "}
+              {deliverySettings.minimumOrderAmount}
               {deliverySettings.deliveryCharge > 0 ? ` · Rs ${deliverySettings.deliveryCharge} delivery charge` : ""})
             </div>
+            <LocationPicker
+              maxRadiusKm={deliverySettings.radiusKm}
+              onChange={(loc) => {
+                setPickedLocation(loc);
+                if (loc?.address) setDeliveryAddress(loc.address);
+              }}
+            />
+            <div className="text-[11px] text-mocha mb-1 mt-2.5">Address (edit if needed)</div>
             <textarea
               value={deliveryAddress}
               onChange={(e) => setDeliveryAddress(e.target.value)}
               placeholder="House/flat no., street, landmark, area"
-              rows={3}
+              rows={2}
               className="w-full bg-vanilla rounded-lg px-3 py-2.5 text-xs text-espresso outline-none placeholder:text-mocha resize-none"
             />
             {foodTotal < deliverySettings.minimumOrderAmount && (

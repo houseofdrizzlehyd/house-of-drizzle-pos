@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { round2 } from "@/lib/tax";
 import { requireAdmin } from "@/lib/admin-auth";
+import { distanceFromStoreKm } from "@/lib/geo";
 
 type IncomingLine = {
   productId: string;
@@ -23,6 +24,8 @@ export async function POST(request: Request) {
   const markPaid = source === "pos" && Boolean(body.markPaid);
   const orderType: "dine_in" | "delivery" = body.orderType === "delivery" ? "delivery" : "dine_in";
   const deliveryAddress = orderType === "delivery" ? String(body.deliveryAddress ?? "").trim() : null;
+  const deliveryLat = orderType === "delivery" && Number.isFinite(Number(body.deliveryLat)) ? Number(body.deliveryLat) : null;
+  const deliveryLng = orderType === "delivery" && Number.isFinite(Number(body.deliveryLng)) ? Number(body.deliveryLng) : null;
 
   // POS orders are created by an authenticated admin/staff session; web
   // orders come from anonymous customers and skip this check entirely.
@@ -40,6 +43,9 @@ export async function POST(request: Request) {
   }
   if (orderType === "delivery" && !deliveryAddress) {
     return NextResponse.json({ error: "A delivery address is required." }, { status: 400 });
+  }
+  if (orderType === "delivery" && (deliveryLat === null || deliveryLng === null)) {
+    return NextResponse.json({ error: "A delivery pin location is required." }, { status: 400 });
   }
 
   const supabase = createServiceClient();
@@ -200,14 +206,25 @@ export async function POST(request: Request) {
     const { data: deliverySettingRows } = await supabase
       .from("settings")
       .select("key, value")
-      .in("key", ["delivery_minimum_order_amount", "delivery_charge_amount"]);
+      .in("key", ["delivery_minimum_order_amount", "delivery_charge_amount", "delivery_radius_km"]);
     const settingsByKey = new Map((deliverySettingRows ?? []).map((row) => [row.key, row.value]));
     const minimumOrderAmount = Number(settingsByKey.get("delivery_minimum_order_amount") ?? 200) || 200;
     deliveryCharge = Number(settingsByKey.get("delivery_charge_amount") ?? 0) || 0;
+    const radiusKm = Number(settingsByKey.get("delivery_radius_km") ?? 5) || 5;
 
     if (subtotal < minimumOrderAmount) {
       return NextResponse.json(
         { error: `Delivery orders need a minimum of Rs ${minimumOrderAmount}.` },
+        { status: 400 }
+      );
+    }
+
+    // Never trust a client-sent distance — recompute from the pinned
+    // coordinates against the store's fixed location.
+    const km = distanceFromStoreKm(deliveryLat as number, deliveryLng as number);
+    if (km > radiusKm) {
+      return NextResponse.json(
+        { error: `That location is outside our ${radiusKm}km delivery range.` },
         { status: 400 }
       );
     }
@@ -230,6 +247,8 @@ export async function POST(request: Request) {
       order_type: orderType,
       delivery_address: deliveryAddress,
       delivery_charge: deliveryCharge,
+      delivery_lat: deliveryLat,
+      delivery_lng: deliveryLng,
       ...(markPaid ? { paid_at: new Date().toISOString() } : {}),
     })
     .select()

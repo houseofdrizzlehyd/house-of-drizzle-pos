@@ -59,6 +59,8 @@ export type Order = {
   order_type: OrderType;
   delivery_address: string | null;
   delivery_charge: number;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   created_at: string;
 };
 

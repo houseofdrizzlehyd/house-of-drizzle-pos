@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { Spinner } from "@/components/Spinner";
 
-type Settings = { deliveryMinimumOrderAmount: number; deliveryChargeAmount: number };
+type Settings = { deliveryMinimumOrderAmount: number; deliveryChargeAmount: number; deliveryRadiusKm: number };
 
 export function AdminSettingsClient() {
   const [loading, setLoading] = useState(true);
   const [minimumOrderAmount, setMinimumOrderAmount] = useState("");
   const [deliveryChargeAmount, setDeliveryChargeAmount] = useState("");
+  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -19,6 +20,7 @@ export function AdminSettingsClient() {
       .then((body: Settings) => {
         setMinimumOrderAmount(String(body.deliveryMinimumOrderAmount));
         setDeliveryChargeAmount(String(body.deliveryChargeAmount));
+        setDeliveryRadiusKm(String(body.deliveryRadiusKm));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -28,11 +30,15 @@ export function AdminSettingsClient() {
     setSaved(false);
     const minimum = Number(minimumOrderAmount);
     const charge = Number(deliveryChargeAmount);
+    const radius = Number(deliveryRadiusKm);
     if (!Number.isFinite(minimum) || minimum < 0) {
       return setError("Minimum order value must be a non-negative number.");
     }
     if (!Number.isFinite(charge) || charge < 0) {
       return setError("Delivery charge must be a non-negative number.");
+    }
+    if (!Number.isFinite(radius) || radius <= 0) {
+      return setError("Delivery radius must be a positive number.");
     }
 
     setSaving(true);
@@ -40,7 +46,11 @@ export function AdminSettingsClient() {
       const res = await fetch("/api/admin/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deliveryMinimumOrderAmount: minimum, deliveryChargeAmount: charge }),
+        body: JSON.stringify({
+          deliveryMinimumOrderAmount: minimum,
+          deliveryChargeAmount: charge,
+          deliveryRadiusKm: radius,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? "Could not save settings.");
@@ -83,6 +93,15 @@ export function AdminSettingsClient() {
           <input
             value={deliveryChargeAmount}
             onChange={(e) => setDeliveryChargeAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+            className="w-full bg-cream rounded-lg px-3 py-2 text-xs outline-none"
+          />
+        </div>
+
+        <div>
+          <div className="text-[11px] text-mocha mb-1">Delivery radius (km)</div>
+          <input
+            value={deliveryRadiusKm}
+            onChange={(e) => setDeliveryRadiusKm(e.target.value.replace(/[^0-9.]/g, ""))}
             className="w-full bg-cream rounded-lg px-3 py-2 text-xs outline-none"
           />
         </div>

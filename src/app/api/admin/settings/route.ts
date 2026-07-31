@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
-const KEYS = ["delivery_minimum_order_amount", "delivery_charge_amount"] as const;
+const KEYS = ["delivery_minimum_order_amount", "delivery_charge_amount", "delivery_radius_km"] as const;
 
 export async function GET() {
   const user = await requireAdmin();
@@ -15,6 +15,7 @@ export async function GET() {
   return NextResponse.json({
     deliveryMinimumOrderAmount: Number(byKey.get("delivery_minimum_order_amount") ?? 200) || 200,
     deliveryChargeAmount: Number(byKey.get("delivery_charge_amount") ?? 0) || 0,
+    deliveryRadiusKm: Number(byKey.get("delivery_radius_km") ?? 5) || 5,
   });
 }
 
@@ -41,6 +42,14 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Delivery charge must be a non-negative number." }, { status: 400 });
     }
     updates.push({ key: "delivery_charge_amount", value });
+  }
+
+  if ("deliveryRadiusKm" in body) {
+    const value = Number(body.deliveryRadiusKm);
+    if (!Number.isFinite(value) || value <= 0) {
+      return NextResponse.json({ error: "Delivery radius must be a positive number." }, { status: 400 });
+    }
+    updates.push({ key: "delivery_radius_km", value });
   }
 
   if (updates.length === 0) {

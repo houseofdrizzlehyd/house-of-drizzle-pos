@@ -64,6 +64,10 @@ insert into settings (key, value)
 values ('delivery_charge_amount', '0')
 on conflict (key) do nothing;
 
+insert into settings (key, value)
+values ('delivery_radius_km', '5')
+on conflict (key) do nothing;
+
 -- ---------------------------------------------------------------------------
 -- Customers (recognized by mobile number, tracked for the loyalty milestone)
 -- ---------------------------------------------------------------------------
@@ -114,6 +118,8 @@ create table if not exists orders (
   order_type text not null default 'dine_in' check (order_type in ('dine_in','delivery')),
   delivery_address text,           -- required when order_type = 'delivery'; staff calls to confirm it's within range
   delivery_charge numeric(10,2) not null default 0, -- snapshot of settings.delivery_charge_amount at order time
+  delivery_lat double precision,   -- customer-dropped pin, for radius enforcement + staff "view on map"
+  delivery_lng double precision,
   created_at timestamptz not null default now(),
   paid_at timestamptz,
   ready_at timestamptz,
