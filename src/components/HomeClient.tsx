@@ -72,7 +72,7 @@ export function HomeClient({
 
       {query.trim() ? (
         <div className="px-4 pt-4">
-          <div className="text-sm font-medium text-chocolate mb-2">
+          <div className="section-title mb-2">
             {searchResults.length} result{searchResults.length === 1 ? "" : "s"}
           </div>
           <div className="grid grid-cols-2 gap-2.5">
@@ -85,7 +85,7 @@ export function HomeClient({
         <>
           {specials.length > 0 && (
             <div className="pt-4 px-4">
-              <div className="text-sm font-medium text-chocolate mb-2.5">Today&apos;s special</div>
+              <div className="section-title mb-2.5">Today&apos;s special</div>
               <div className="flex gap-2.5 overflow-x-auto pb-1">
                 {specials.map((p) => (
                   <ProductCard key={p.id} product={p} compact />
@@ -96,7 +96,7 @@ export function HomeClient({
 
           {mustTry.length > 0 && (
             <div className="pt-4 px-4">
-              <div className="text-sm font-medium text-chocolate mb-2.5">Must try</div>
+              <div className="section-title mb-2.5">Must try</div>
               <div className="flex gap-2.5 overflow-x-auto pb-1">
                 {mustTry.map((p) => (
                   <ProductCard key={p.id} product={p} compact />
@@ -106,11 +106,16 @@ export function HomeClient({
           )}
 
           <div className="pt-4 px-4">
-            <div className="text-sm font-medium text-chocolate mb-2.5">Categories</div>
+            <div className="section-title mb-2.5">Categories</div>
             <div className="grid grid-cols-2 gap-2.5">
               {categories.map((c) => (
-                <Link key={c.id} href={`/category/${c.id}`} className="card">
-                  <span className="text-sm text-espresso">{c.name}</span>
+                <Link
+                  key={c.id}
+                  href={`/category/${c.id}`}
+                  className="card flex items-center justify-between"
+                >
+                  <span className="text-sm font-medium text-espresso">{c.name}</span>
+                  <span className="text-mocha">&rarr;</span>
                 </Link>
               ))}
             </div>

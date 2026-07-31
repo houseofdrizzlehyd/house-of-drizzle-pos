@@ -49,12 +49,12 @@ export function OrderStatusClient({
   return (
     <div className="pb-8">
       <div className="bg-chocolate px-4 py-3 text-center">
-        <span className="text-cream text-sm font-medium">Order confirmed</span>
+        <span className="topbar-title">Order confirmed</span>
       </div>
 
       <div className="px-4 pt-5 pb-1 text-center">
         <div className="text-[11px] text-mocha">Your order number</div>
-        <div className="text-4xl font-medium text-chocolate mt-1">#{order.order_number}</div>
+        <div className="font-condensed text-4xl font-semibold text-chocolate mt-1">#{order.order_number}</div>
       </div>
 
       {rewardItem && (
@@ -110,7 +110,7 @@ export function OrderStatusClient({
       </div>
 
       <div className="px-4 pt-6">
-        <div className="text-sm font-medium text-chocolate mb-2">Order summary</div>
+        <div className="section-title mb-2">Order summary</div>
         <div className="card flex flex-col gap-2">
           {items.map((item) => (
             <div key={item.id} className="flex justify-between text-xs text-espresso">
@@ -126,7 +126,9 @@ export function OrderStatusClient({
           ))}
           <div className="flex justify-between text-xs font-medium text-chocolate border-t border-gold/50 pt-2 mt-1">
             <span>Total</span>
-            <span>Rs {Number(order.subtotal).toFixed(0)}</span>
+            <span className="font-condensed font-semibold text-chocolate text-sm">
+              Rs {Number(order.subtotal).toFixed(0)}
+            </span>
           </div>
         </div>
         <div className="text-[11px] text-mocha mt-2">

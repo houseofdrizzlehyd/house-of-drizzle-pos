@@ -42,6 +42,17 @@ body {
   font-family: "Oswald", sans-serif;
 }
 
+/* Section labels ("Today's special", "Must try"...) and page top-bar
+   titles use the condensed display face so the menu reads like a
+   dessert-shop board rather than a generic form. */
+.section-title {
+  @apply font-condensed uppercase tracking-wide text-chocolate text-sm;
+}
+
+.topbar-title {
+  @apply font-condensed uppercase tracking-wide text-cream text-sm;
+}
+
 @keyframes marquee-scroll {
   from {
     transform: translateX(0);

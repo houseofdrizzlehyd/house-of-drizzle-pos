@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { Spinner } from "@/components/Spinner";
+import { DessertPlaceholder } from "@/components/DessertPlaceholder";
 
 type WebCoupon = { id: string; name: string; discount_percent: number };
 
@@ -71,7 +72,7 @@ export default function CheckoutPage() {
       <div className="pb-8">
         <div className="bg-chocolate px-4 py-3 flex items-center gap-3">
           <Link href="/" className="text-cream text-sm">&larr;</Link>
-          <span className="text-cream text-sm font-medium">Checkout</span>
+          <span className="topbar-title">Checkout</span>
         </div>
         <div className="px-4 pt-10 text-center">
           <div className="text-sm text-mocha">Your cart is empty.</div>
@@ -94,12 +95,22 @@ export default function CheckoutPage() {
             const toppingTotal = line.selectedToppings.reduce((s, t) => s + Number(t.price), 0);
             const lineTotal = (Number(line.product.price) + toppingTotal) * line.quantity;
             return (
-              <div key={line.key} className="flex justify-between text-xs text-espresso">
-                <span>
-                  {line.product.name}
-                  {line.quantity > 1 ? ` x${line.quantity}` : ""}
+              <div key={line.key} className="flex items-center justify-between gap-2.5 text-xs text-espresso">
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="w-7 h-7 rounded-md bg-belgian overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {line.product.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={line.product.image_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <DessertPlaceholder className="w-3.5 h-3.5 text-mocha" />
+                    )}
+                  </span>
+                  <span className="truncate">
+                    {line.product.name}
+                    {line.quantity > 1 ? ` x${line.quantity}` : ""}
+                  </span>
                 </span>
-                <span>Rs {lineTotal.toFixed(0)}</span>
+                <span className="flex-shrink-0">Rs {lineTotal.toFixed(0)}</span>
               </div>
             );
           })}
@@ -111,7 +122,7 @@ export default function CheckoutPage() {
           )}
           <div className="flex justify-between text-xs font-medium text-chocolate border-t border-gold/50 pt-1.5 mt-1">
             <span>Total</span>
-            <span>Rs {total.toFixed(0)}</span>
+            <span className="font-condensed font-semibold text-chocolate text-sm">Rs {total.toFixed(0)}</span>
           </div>
         </div>
         <div className="text-[11px] text-mocha pt-1.5">All prices are inclusive of taxes.</div>

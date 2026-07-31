@@ -18,7 +18,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ id: s
     <div className="pb-8">
       <div className="bg-chocolate px-4 py-3 flex items-center gap-3">
         <Link href="/" className="text-cream text-sm">&larr;</Link>
-        <span className="text-cream text-sm font-medium">{category?.name ?? "Menu"}</span>
+        <span className="topbar-title">{category?.name ?? "Menu"}</span>
       </div>
       <div className="px-4 pt-4 grid grid-cols-2 gap-2.5">
         {((products ?? []) as Product[]).map((p) => (

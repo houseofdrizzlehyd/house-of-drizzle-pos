@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/lib/cart-context";
 import type { Product, Topping } from "@/lib/types";
+import { DessertPlaceholder } from "@/components/DessertPlaceholder";
 
 export function ProductDetailClient({ product, toppings }: { product: Product; toppings: Topping[] }) {
   const router = useRouter();
@@ -30,30 +31,34 @@ export function ProductDetailClient({ product, toppings }: { product: Product; t
   }
 
   return (
-    <div className="pb-8">
+    <div className="pb-28">
       <div className="bg-chocolate px-4 py-3 flex items-center gap-3">
         <Link href="/" className="text-cream text-sm">&larr;</Link>
-        <span className="text-cream text-sm font-medium">Item details</span>
+        <span className="topbar-title">Item details</span>
       </div>
 
-      <div className="w-full h-36 bg-belgian">
+      <div className="w-full aspect-[4/3] bg-belgian flex items-center justify-center">
         {product.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-        ) : null}
+        ) : (
+          <DessertPlaceholder className="w-16 h-16 text-mocha" />
+        )}
       </div>
 
-      <div className="px-4 pt-3.5">
-        <div className="text-base font-medium text-espresso">{product.name}</div>
+      <div className="px-4 pt-4">
+        <div className="text-lg font-medium text-espresso">{product.name}</div>
         {product.description && (
-          <div className="text-xs text-mocha mt-1 leading-relaxed">{product.description}</div>
+          <div className="text-xs text-mocha mt-1.5 leading-relaxed">{product.description}</div>
         )}
-        <div className="text-base font-medium text-chocolate mt-2">Rs {Number(product.price).toFixed(0)}</div>
+        <div className="font-condensed text-lg font-semibold text-chocolate mt-2.5">
+          Rs {Number(product.price).toFixed(0)}
+        </div>
       </div>
 
       {toppings.length > 0 && (
-        <div className="px-4 pt-4">
-          <div className="text-sm font-medium text-chocolate mb-2">Add toppings</div>
+        <div className="px-4 pt-5">
+          <div className="section-title mb-2">Add toppings</div>
           <div className="flex flex-col gap-2">
             {toppings.map((t) => (
               <button
@@ -76,7 +81,7 @@ export function ProductDetailClient({ product, toppings }: { product: Product; t
         </div>
       )}
 
-      <div className="px-4 pt-4 flex items-center gap-3">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-cream px-4 py-3 flex items-center gap-3 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
         <div className="flex items-center gap-3 bg-vanilla rounded-lg px-2.5 py-1.5">
           <button
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
