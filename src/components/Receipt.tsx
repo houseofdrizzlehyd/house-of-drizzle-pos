@@ -110,6 +110,7 @@ export function Receipt({ order, items }: { order: ReceiptOrder; items: ReceiptI
 
       <div className="border-t border-dashed border-black my-1.5" />
 
+      <div className="text-center">FSSAI No: {BUSINESS_INFO.fssai}</div>
       <div className="text-center mt-1">{BUSINESS_INFO.thankYouMessage}</div>
     </div>
   );
