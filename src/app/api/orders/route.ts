@@ -194,13 +194,17 @@ export async function POST(request: Request) {
 
   const subtotal = round2(orderItems.reduce((s, i) => s + i.line_total, 0));
 
+  let deliveryCharge = 0;
+
   if (orderType === "delivery") {
-    const { data: minRow } = await supabase
+    const { data: deliverySettingRows } = await supabase
       .from("settings")
-      .select("value")
-      .eq("key", "delivery_minimum_order_amount")
-      .maybeSingle();
-    const minimumOrderAmount = Number(minRow?.value ?? 200) || 200;
+      .select("key, value")
+      .in("key", ["delivery_minimum_order_amount", "delivery_charge_amount"]);
+    const settingsByKey = new Map((deliverySettingRows ?? []).map((row) => [row.key, row.value]));
+    const minimumOrderAmount = Number(settingsByKey.get("delivery_minimum_order_amount") ?? 200) || 200;
+    deliveryCharge = Number(settingsByKey.get("delivery_charge_amount") ?? 0) || 0;
+
     if (subtotal < minimumOrderAmount) {
       return NextResponse.json(
         { error: `Delivery orders need a minimum of Rs ${minimumOrderAmount}.` },
@@ -225,6 +229,7 @@ export async function POST(request: Request) {
       discount_amount: discountAmount,
       order_type: orderType,
       delivery_address: deliveryAddress,
+      delivery_charge: deliveryCharge,
       ...(markPaid ? { paid_at: new Date().toISOString() } : {}),
     })
     .select()

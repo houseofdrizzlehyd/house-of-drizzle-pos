@@ -9,8 +9,9 @@ import { DessertPlaceholder } from "@/components/DessertPlaceholder";
 
 type WebCoupon = { id: string; name: string; discount_percent: number };
 type OrderType = "dine_in" | "delivery";
+type DeliverySettings = { minimumOrderAmount: number; deliveryCharge: number };
 
-const DELIVERY_MINIMUM = 200;
+const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = { minimumOrderAmount: 200, deliveryCharge: 0 };
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -23,17 +24,29 @@ export default function CheckoutPage() {
   const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliverySettings, setDeliverySettings] = useState<DeliverySettings>(DEFAULT_DELIVERY_SETTINGS);
 
   useEffect(() => {
     fetch("/api/coupons?channel=web")
       .then((res) => res.json())
       .then((body) => setCoupons(body.coupons ?? []))
       .catch(() => {});
+    fetch("/api/delivery-settings")
+      .then((res) => res.json())
+      .then((body) =>
+        setDeliverySettings({
+          minimumOrderAmount: Number(body.minimumOrderAmount) || 200,
+          deliveryCharge: Number(body.deliveryCharge) || 0,
+        })
+      )
+      .catch(() => {});
   }, []);
 
   const selectedCoupon = coupons.find((c) => c.id === selectedCouponId) ?? null;
   const discountAmount = selectedCoupon ? (subtotal * Number(selectedCoupon.discount_percent)) / 100 : 0;
-  const total = subtotal - discountAmount;
+  const foodTotal = subtotal - discountAmount;
+  const deliveryChargeValue = orderType === "delivery" ? deliverySettings.deliveryCharge : 0;
+  const total = foodTotal + deliveryChargeValue;
 
   async function placeOrder() {
     setError(null);
@@ -42,8 +55,8 @@ export default function CheckoutPage() {
     if (lines.length === 0) return setError("Your cart is empty.");
     if (orderType === "delivery") {
       if (!deliveryAddress.trim()) return setError("Please enter your delivery address.");
-      if (total < DELIVERY_MINIMUM) {
-        return setError(`Delivery orders need a minimum of Rs ${DELIVERY_MINIMUM}.`);
+      if (foodTotal < deliverySettings.minimumOrderAmount) {
+        return setError(`Delivery orders need a minimum of Rs ${deliverySettings.minimumOrderAmount}.`);
       }
     }
 
@@ -133,6 +146,12 @@ export default function CheckoutPage() {
               <span>-Rs {discountAmount.toFixed(0)}</span>
             </div>
           )}
+          {deliveryChargeValue > 0 && (
+            <div className="flex justify-between text-xs text-espresso">
+              <span>Delivery charge</span>
+              <span>Rs {deliveryChargeValue.toFixed(0)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-xs font-medium text-chocolate border-t border-gold/50 pt-1.5 mt-1">
             <span>Total</span>
             <span className="font-condensed font-semibold text-chocolate text-sm">Rs {total.toFixed(0)}</span>
@@ -165,7 +184,8 @@ export default function CheckoutPage() {
         {orderType === "delivery" && (
           <div className="mt-3">
             <div className="text-[11px] text-mocha mb-1">
-              Delivery address (within ~3km of the store · min. order Rs {DELIVERY_MINIMUM})
+              Delivery address (within ~3km of the store · min. order Rs {deliverySettings.minimumOrderAmount}
+              {deliverySettings.deliveryCharge > 0 ? ` · Rs ${deliverySettings.deliveryCharge} delivery charge` : ""})
             </div>
             <textarea
               value={deliveryAddress}
@@ -174,9 +194,9 @@ export default function CheckoutPage() {
               rows={3}
               className="w-full bg-vanilla rounded-lg px-3 py-2.5 text-xs text-espresso outline-none placeholder:text-mocha resize-none"
             />
-            {total < DELIVERY_MINIMUM && (
+            {foodTotal < deliverySettings.minimumOrderAmount && (
               <div className="text-[11px] text-strawberry mt-1">
-                Add Rs {(DELIVERY_MINIMUM - total).toFixed(0)} more to qualify for delivery.
+                Add Rs {(deliverySettings.minimumOrderAmount - foodTotal).toFixed(0)} more to qualify for delivery.
               </div>
             )}
           </div>

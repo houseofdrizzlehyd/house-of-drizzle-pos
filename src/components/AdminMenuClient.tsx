@@ -29,6 +29,7 @@ export function AdminMenuClient() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [addingCategory, setAddingCategory] = useState(false);
 
@@ -61,7 +62,11 @@ export function AdminMenuClient() {
     }
   }
 
-  const filtered = products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
+  const filtered = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(query.toLowerCase()) &&
+      (!categoryFilter || p.category_id === categoryFilter)
+  );
 
   return (
     <div className="p-3 sm:p-6">
@@ -97,6 +102,26 @@ export function AdminMenuClient() {
             Add category
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        <button
+          onClick={() => setCategoryFilter(null)}
+          className={`chip ${!categoryFilter ? "bg-gold text-chocolate font-medium" : "bg-vanilla text-mocha"}`}
+        >
+          All categories
+        </button>
+        {categories.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setCategoryFilter(c.id === categoryFilter ? null : c.id)}
+            className={`chip ${
+              categoryFilter === c.id ? "bg-gold text-chocolate font-medium" : "bg-vanilla text-mocha"
+            }`}
+          >
+            {c.name}
+          </button>
+        ))}
       </div>
 
       {showAddItem && (

@@ -53,3 +53,39 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdmin();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const supabase = createServiceClient();
+
+  const { data: order, error: fetchError } = await supabase
+    .from("orders")
+    .select("customer_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (fetchError) return NextResponse.json({ error: "Could not find order." }, { status: 500 });
+
+  // order_items cascade-delete automatically via the FK.
+  const { error: deleteError } = await supabase.from("orders").delete().eq("id", id);
+  if (deleteError) return NextResponse.json({ error: "Could not delete order." }, { status: 500 });
+
+  // Keep the loyalty milestone accurate — this order no longer counts.
+  if (order?.customer_id) {
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("order_count")
+      .eq("id", order.customer_id)
+      .maybeSingle();
+    if (customer) {
+      await supabase
+        .from("customers")
+        .update({ order_count: Math.max(0, customer.order_count - 1) })
+        .eq("id", order.customer_id);
+    }
+  }
+
+  return NextResponse.json({ ok: true });
+}

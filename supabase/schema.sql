@@ -60,6 +60,10 @@ insert into settings (key, value)
 values ('delivery_minimum_order_amount', '200')
 on conflict (key) do nothing;
 
+insert into settings (key, value)
+values ('delivery_charge_amount', '0')
+on conflict (key) do nothing;
+
 -- ---------------------------------------------------------------------------
 -- Customers (recognized by mobile number, tracked for the loyalty milestone)
 -- ---------------------------------------------------------------------------
@@ -109,6 +113,7 @@ create table if not exists orders (
   discount_amount numeric(10,2) not null default 0,
   order_type text not null default 'dine_in' check (order_type in ('dine_in','delivery')),
   delivery_address text,           -- required when order_type = 'delivery'; staff calls to confirm it's within range
+  delivery_charge numeric(10,2) not null default 0, -- snapshot of settings.delivery_charge_amount at order time
   created_at timestamptz not null default now(),
   paid_at timestamptz,
   ready_at timestamptz,

@@ -58,6 +58,7 @@ export type Order = {
   discount_amount: number;
   order_type: OrderType;
   delivery_address: string | null;
+  delivery_charge: number;
   created_at: string;
 };
 

@@ -45,7 +45,8 @@ export async function GET(request: Request) {
     ? await supabase.from("order_items").select("*").in("order_id", orderIds)
     : { data: [] };
 
-  const grossSales = (orders ?? []).reduce((s, o) => s + Number(o.subtotal), 0);
+  const deliveryChargesCollected = (orders ?? []).reduce((s, o) => s + Number(o.delivery_charge ?? 0), 0);
+  const grossSales = (orders ?? []).reduce((s, o) => s + Number(o.subtotal), 0) + deliveryChargesCollected;
   const ordersCount = (orders ?? []).length;
   const avgOrderValue = ordersCount ? grossSales / ordersCount : 0;
   const rewardsGiven = (orders ?? []).filter((o) => o.reward_applied === "free_dish").length;
@@ -77,6 +78,7 @@ export async function GET(request: Request) {
     posOrdersCount,
     webOrdersCount,
     deliveryOrdersCount,
+    deliveryChargesCollected,
     taxBreakup,
     topItems,
   });

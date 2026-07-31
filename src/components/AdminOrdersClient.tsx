@@ -34,6 +34,7 @@ export function AdminOrdersClient() {
   const [loading, setLoading] = useState(true);
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/orders", { cache: "no-store" });
@@ -73,6 +74,17 @@ export function AdminOrdersClient() {
       setReceiptData({ order: body.order, items: body.items });
     } finally {
       setPrintingId(null);
+    }
+  }
+
+  async function deleteOrder(id: string, orderNumber: number) {
+    if (!window.confirm(`Delete order #${orderNumber}? This can't be undone.`)) return;
+    setDeletingId(id);
+    try {
+      await fetch(`/api/admin/orders/${id}`, { method: "DELETE" });
+      await load();
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -130,10 +142,15 @@ export function AdminOrdersClient() {
             )}
             <div className="flex items-center justify-between mt-2.5">
               <span className="text-xs font-medium text-chocolate">
-                Rs {Number(order.subtotal).toFixed(0)}
+                Rs {(Number(order.subtotal) + Number(order.delivery_charge)).toFixed(0)}
                 {Number(order.discount_amount) > 0 && (
                   <span className="text-[10px] text-strawberry ml-1">
                     (-Rs {Number(order.discount_amount).toFixed(0)})
+                  </span>
+                )}
+                {Number(order.delivery_charge) > 0 && (
+                  <span className="text-[10px] text-mocha ml-1">
+                    (+Rs {Number(order.delivery_charge).toFixed(0)} delivery)
                   </span>
                 )}
               </span>
@@ -146,7 +163,17 @@ export function AdminOrdersClient() {
                 {order.order_type === "delivery" ? "Confirmed & paid" : "Mark as paid"}
               </button>
             </div>
-            <div className="text-[10px] text-mocha mt-1">{timeAgo(order.created_at)}</div>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-[10px] text-mocha">{timeAgo(order.created_at)}</span>
+              <button
+                onClick={() => deleteOrder(order.id, order.order_number)}
+                disabled={deletingId === order.id}
+                className="text-[10px] text-strawberry underline inline-flex items-center gap-1 disabled:opacity-60"
+              >
+                {deletingId === order.id && <Spinner className="h-2.5 w-2.5" />}
+                Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -190,10 +217,15 @@ export function AdminOrdersClient() {
             )}
             <div className="flex items-center justify-between mt-2.5">
               <span className="text-xs font-medium text-chocolate">
-                Rs {Number(order.subtotal).toFixed(0)}
+                Rs {(Number(order.subtotal) + Number(order.delivery_charge)).toFixed(0)}
                 {Number(order.discount_amount) > 0 && (
                   <span className="text-[10px] text-strawberry ml-1">
                     (-Rs {Number(order.discount_amount).toFixed(0)})
+                  </span>
+                )}
+                {Number(order.delivery_charge) > 0 && (
+                  <span className="text-[10px] text-mocha ml-1">
+                    (+Rs {Number(order.delivery_charge).toFixed(0)} delivery)
                   </span>
                 )}
               </span>
@@ -217,7 +249,15 @@ export function AdminOrdersClient() {
                 </button>
               )}
             </div>
-            <div className="text-right mt-1.5">
+            <div className="flex items-center justify-between mt-1.5">
+              <button
+                onClick={() => deleteOrder(order.id, order.order_number)}
+                disabled={deletingId === order.id}
+                className="text-[10px] text-strawberry underline inline-flex items-center gap-1 disabled:opacity-60"
+              >
+                {deletingId === order.id && <Spinner className="h-2.5 w-2.5" />}
+                Delete
+              </button>
               <button
                 onClick={() => printBill(order.id)}
                 disabled={printingId === order.id}

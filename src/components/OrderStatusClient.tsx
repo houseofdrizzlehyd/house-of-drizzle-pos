@@ -136,10 +136,16 @@ export function OrderStatusClient({
               </span>
             </div>
           ))}
+          {Number(order.delivery_charge) > 0 && (
+            <div className="flex justify-between text-xs text-espresso">
+              <span>Delivery charge</span>
+              <span>Rs {Number(order.delivery_charge).toFixed(0)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-xs font-medium text-chocolate border-t border-gold/50 pt-2 mt-1">
             <span>Total</span>
             <span className="font-condensed font-semibold text-chocolate text-sm">
-              Rs {Number(order.subtotal).toFixed(0)}
+              Rs {(Number(order.subtotal) + Number(order.delivery_charge)).toFixed(0)}
             </span>
           </div>
         </div>

@@ -13,6 +13,7 @@ type Report = {
   posOrdersCount: number;
   webOrdersCount: number;
   deliveryOrdersCount: number;
+  deliveryChargesCollected: number;
   taxBreakup: { taxableValue: number; cgst: number; sgst: number; totalTax: number };
   topItems: { name: string; quantity: number }[];
 };
@@ -50,6 +51,7 @@ export function AdminReportsClient() {
       ["Web orders", String(report.webOrdersCount)],
       ["POS orders", String(report.posOrdersCount)],
       ["Delivery orders", String(report.deliveryOrdersCount)],
+      ["Delivery charges collected (Rs)", report.deliveryChargesCollected.toFixed(2)],
       ["Taxable value (Rs)", report.taxBreakup.taxableValue.toFixed(2)],
       ["CGST (Rs)", report.taxBreakup.cgst.toFixed(2)],
       ["SGST (Rs)", report.taxBreakup.sgst.toFixed(2)],
@@ -105,6 +107,11 @@ export function AdminReportsClient() {
             <Metric label="POS orders" value={String(report.posOrdersCount)} />
             <Metric label="Delivery orders" value={String(report.deliveryOrdersCount)} />
           </div>
+          {report.deliveryChargesCollected > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <Metric label="Delivery charges collected" value={`Rs ${report.deliveryChargesCollected.toFixed(0)}`} />
+            </div>
+          )}
 
           <div className="sm:grid sm:grid-cols-2 sm:gap-6 sm:items-start">
           <div>
