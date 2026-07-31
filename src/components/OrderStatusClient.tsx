@@ -4,10 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Order, OrderItem } from "@/lib/types";
 
-const STEPS = [
+const STEPS_DINE_IN = [
   { key: "placed", label: "Received" },
   { key: "preparing", label: "Preparing" },
   { key: "ready", label: "Ready" },
+] as const;
+
+const STEPS_DELIVERY = [
+  { key: "placed", label: "Received" },
+  { key: "preparing", label: "Preparing" },
+  { key: "ready", label: "Out for delivery" },
 ] as const;
 
 function stepIndex(status: Order["status"]) {
@@ -45,6 +51,8 @@ export function OrderStatusClient({
 
   const active = stepIndex(order.status);
   const rewardItem = items.find((i) => i.is_free_reward);
+  const isDelivery = order.order_type === "delivery";
+  const STEPS = isDelivery ? STEPS_DELIVERY : STEPS_DINE_IN;
 
   return (
     <div className="pb-8">
@@ -75,7 +83,11 @@ export function OrderStatusClient({
 
       <div className="px-4 pt-2 text-center">
         <div className="text-[11px] text-mocha">
-          {order.is_paid
+          {isDelivery
+            ? order.is_paid
+              ? "Payment received — your order is on its way to being prepared for delivery."
+              : "Our team will call you shortly to confirm your order and collect payment via a QR code."
+            : order.is_paid
             ? "Thanks for paying at the counter."
             : "Show this number at the counter to pay and collect."}
         </div>
@@ -134,6 +146,9 @@ export function OrderStatusClient({
         <div className="text-[11px] text-mocha mt-2">
           For {order.customer_name} &middot; {order.customer_mobile}
         </div>
+        {isDelivery && order.delivery_address && (
+          <div className="text-[11px] text-mocha mt-1">Delivering to: {order.delivery_address}</div>
+        )}
       </div>
 
       <div className="px-4 pt-5">

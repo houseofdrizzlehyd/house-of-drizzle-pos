@@ -21,6 +21,8 @@ export async function POST(request: Request) {
   const source: "web" | "pos" = body.source === "pos" ? "pos" : "web";
   const couponId = body.couponId ? String(body.couponId) : null;
   const markPaid = source === "pos" && Boolean(body.markPaid);
+  const orderType: "dine_in" | "delivery" = body.orderType === "delivery" ? "delivery" : "dine_in";
+  const deliveryAddress = orderType === "delivery" ? String(body.deliveryAddress ?? "").trim() : null;
 
   // POS orders are created by an authenticated admin/staff session; web
   // orders come from anonymous customers and skip this check entirely.
@@ -35,6 +37,9 @@ export async function POST(request: Request) {
   }
   if (lines.length === 0) {
     return NextResponse.json({ error: "Cart is empty." }, { status: 400 });
+  }
+  if (orderType === "delivery" && !deliveryAddress) {
+    return NextResponse.json({ error: "A delivery address is required." }, { status: 400 });
   }
 
   const supabase = createServiceClient();
@@ -189,6 +194,21 @@ export async function POST(request: Request) {
 
   const subtotal = round2(orderItems.reduce((s, i) => s + i.line_total, 0));
 
+  if (orderType === "delivery") {
+    const { data: minRow } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "delivery_minimum_order_amount")
+      .maybeSingle();
+    const minimumOrderAmount = Number(minRow?.value ?? 200) || 200;
+    if (subtotal < minimumOrderAmount) {
+      return NextResponse.json(
+        { error: `Delivery orders need a minimum of Rs ${minimumOrderAmount}.` },
+        { status: 400 }
+      );
+    }
+  }
+
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -203,6 +223,8 @@ export async function POST(request: Request) {
       source,
       coupon_id: appliedCouponId,
       discount_amount: discountAmount,
+      order_type: orderType,
+      delivery_address: deliveryAddress,
       ...(markPaid ? { paid_at: new Date().toISOString() } : {}),
     })
     .select()

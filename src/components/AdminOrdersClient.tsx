@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Order, OrderItem, OrderSource } from "@/lib/types";
+import type { Order, OrderItem, OrderSource, OrderType } from "@/lib/types";
 import { Spinner } from "@/components/Spinner";
 import { Receipt, type ReceiptItem, type ReceiptOrder } from "@/components/Receipt";
 
@@ -21,6 +21,11 @@ function SourceBadge({ source }: { source: OrderSource }) {
       {source === "pos" ? "POS" : "Web"}
     </span>
   );
+}
+
+function OrderTypeBadge({ orderType }: { orderType: OrderType }) {
+  if (orderType !== "delivery") return null;
+  return <span className="chip ml-1.5 bg-mango text-chocolate font-medium">Delivery</span>;
 }
 
 export function AdminOrdersClient() {
@@ -95,7 +100,7 @@ export function AdminOrdersClient() {
       ) : (
       <div className="sm:grid sm:grid-cols-2 sm:gap-6">
       <div>
-      <div className="text-[10px] uppercase tracking-wide text-mocha mb-2">Waiting at counter</div>
+      <div className="text-[10px] uppercase tracking-wide text-mocha mb-2">Awaiting payment</div>
       <div className="flex flex-col gap-2.5 mb-5 sm:mb-0">
         {unpaid.length === 0 && <div className="text-xs text-mocha">No unpaid orders.</div>}
         {unpaid.map((order) => (
@@ -105,6 +110,7 @@ export function AdminOrdersClient() {
                 <span className="text-sm font-medium text-chocolate">#{order.order_number}</span>
                 <span className="text-[11px] text-mocha ml-1.5">{order.customer_name}</span>
                 <SourceBadge source={order.source} />
+                <OrderTypeBadge orderType={order.order_type} />
               </div>
               <span className="chip bg-strawberry text-[#FBEAF0]">Unpaid</span>
             </div>
@@ -117,6 +123,11 @@ export function AdminOrdersClient() {
                 </div>
               ))}
             </div>
+            {order.order_type === "delivery" && order.delivery_address && (
+              <div className="text-[11px] text-mocha mt-1.5">
+                <span className="font-medium text-chocolate">Deliver to:</span> {order.delivery_address}
+              </div>
+            )}
             <div className="flex items-center justify-between mt-2.5">
               <span className="text-xs font-medium text-chocolate">
                 Rs {Number(order.subtotal).toFixed(0)}
@@ -132,7 +143,7 @@ export function AdminOrdersClient() {
                 className="chip bg-gold text-chocolate font-medium disabled:opacity-60 flex items-center gap-1.5"
               >
                 {busyId === order.id && <Spinner className="h-3 w-3" />}
-                Mark as paid
+                {order.order_type === "delivery" ? "Confirmed & paid" : "Mark as paid"}
               </button>
             </div>
             <div className="text-[10px] text-mocha mt-1">{timeAgo(order.created_at)}</div>
@@ -159,6 +170,7 @@ export function AdminOrdersClient() {
                 <span className="text-sm font-medium text-chocolate">#{order.order_number}</span>
                 <span className="text-[11px] text-mocha ml-1.5">{order.customer_name}</span>
                 <SourceBadge source={order.source} />
+                <OrderTypeBadge orderType={order.order_type} />
               </div>
               <span className="chip bg-pistachio text-[#EAF3DE]">Paid</span>
             </div>
@@ -171,6 +183,11 @@ export function AdminOrdersClient() {
                 </div>
               ))}
             </div>
+            {order.order_type === "delivery" && order.delivery_address && (
+              <div className="text-[11px] text-mocha mt-1.5">
+                <span className="font-medium text-chocolate">Deliver to:</span> {order.delivery_address}
+              </div>
+            )}
             <div className="flex items-center justify-between mt-2.5">
               <span className="text-xs font-medium text-chocolate">
                 Rs {Number(order.subtotal).toFixed(0)}
@@ -187,7 +204,7 @@ export function AdminOrdersClient() {
                   className="chip bg-pistachio text-[#EAF3DE] font-medium disabled:opacity-60 flex items-center gap-1.5"
                 >
                   {busyId === order.id && <Spinner className="h-3 w-3" />}
-                  Mark ready
+                  {order.order_type === "delivery" ? "Out for delivery" : "Mark ready"}
                 </button>
               ) : (
                 <button
@@ -196,7 +213,7 @@ export function AdminOrdersClient() {
                   className="chip bg-gold text-chocolate font-medium disabled:opacity-60 flex items-center gap-1.5"
                 >
                   {busyId === order.id && <Spinner className="h-3 w-3" />}
-                  Complete
+                  {order.order_type === "delivery" ? "Mark delivered" : "Complete"}
                 </button>
               )}
             </div>

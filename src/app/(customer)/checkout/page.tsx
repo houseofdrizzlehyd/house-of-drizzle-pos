@@ -8,6 +8,9 @@ import { Spinner } from "@/components/Spinner";
 import { DessertPlaceholder } from "@/components/DessertPlaceholder";
 
 type WebCoupon = { id: string; name: string; discount_percent: number };
+type OrderType = "dine_in" | "delivery";
+
+const DELIVERY_MINIMUM = 200;
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -18,6 +21,8 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [coupons, setCoupons] = useState<WebCoupon[]>([]);
   const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
+  const [orderType, setOrderType] = useState<OrderType>("dine_in");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
 
   useEffect(() => {
     fetch("/api/coupons?channel=web")
@@ -35,6 +40,12 @@ export default function CheckoutPage() {
     if (!name.trim()) return setError("Please enter your name.");
     if (!/^[0-9]{10}$/.test(mobile.trim())) return setError("Please enter a valid 10-digit mobile number.");
     if (lines.length === 0) return setError("Your cart is empty.");
+    if (orderType === "delivery") {
+      if (!deliveryAddress.trim()) return setError("Please enter your delivery address.");
+      if (total < DELIVERY_MINIMUM) {
+        return setError(`Delivery orders need a minimum of Rs ${DELIVERY_MINIMUM}.`);
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -45,6 +56,8 @@ export default function CheckoutPage() {
           name: name.trim(),
           mobile: mobile.trim(),
           couponId: selectedCouponId,
+          orderType,
+          deliveryAddress: orderType === "delivery" ? deliveryAddress.trim() : undefined,
           lines: lines.map((l) => ({
             productId: l.product.id,
             quantity: l.quantity,
@@ -86,7 +99,7 @@ export default function CheckoutPage() {
     <div className="pb-8">
       <div className="bg-chocolate px-4 py-3 flex items-center gap-3">
         <Link href="/cart" className="text-cream text-sm">&larr;</Link>
-        <span className="text-cream text-sm font-medium">Checkout</span>
+        <span className="topbar-title">Checkout</span>
       </div>
 
       <div className="px-4 pt-3.5">
@@ -126,6 +139,48 @@ export default function CheckoutPage() {
           </div>
         </div>
         <div className="text-[11px] text-mocha pt-1.5">All prices are inclusive of taxes.</div>
+      </div>
+
+      <div className="px-4 pt-4">
+        <div className="text-[11px] text-mocha mb-1">How would you like to get your order?</div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setOrderType("dine_in")}
+            className={`flex-1 rounded-lg py-2.5 text-xs font-medium border ${
+              orderType === "dine_in" ? "bg-gold text-chocolate border-gold" : "bg-vanilla text-mocha border-transparent"
+            }`}
+          >
+            Pickup at counter
+          </button>
+          <button
+            onClick={() => setOrderType("delivery")}
+            className={`flex-1 rounded-lg py-2.5 text-xs font-medium border ${
+              orderType === "delivery" ? "bg-gold text-chocolate border-gold" : "bg-vanilla text-mocha border-transparent"
+            }`}
+          >
+            Home delivery
+          </button>
+        </div>
+
+        {orderType === "delivery" && (
+          <div className="mt-3">
+            <div className="text-[11px] text-mocha mb-1">
+              Delivery address (within ~3km of the store · min. order Rs {DELIVERY_MINIMUM})
+            </div>
+            <textarea
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+              placeholder="House/flat no., street, landmark, area"
+              rows={3}
+              className="w-full bg-vanilla rounded-lg px-3 py-2.5 text-xs text-espresso outline-none placeholder:text-mocha resize-none"
+            />
+            {total < DELIVERY_MINIMUM && (
+              <div className="text-[11px] text-strawberry mt-1">
+                Add Rs {(DELIVERY_MINIMUM - total).toFixed(0)} more to qualify for delivery.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {coupons.length > 0 && (
@@ -185,7 +240,9 @@ export default function CheckoutPage() {
           {submitting ? "Placing order..." : "Place order"}
         </button>
         <div className="text-center text-[10px] text-mocha mt-2">
-          You&apos;ll get an order number &middot; pay at the counter
+          {orderType === "delivery"
+            ? "Our team will call you shortly to confirm your order and share a payment QR."
+            : "You'll get an order number · pay at the counter"}
         </div>
       </div>
     </div>

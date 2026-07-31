@@ -52,6 +52,7 @@ export async function GET(request: Request) {
   const discountsGiven = (orders ?? []).reduce((s, o) => s + Number(o.discount_amount ?? 0), 0);
   const posOrdersCount = (orders ?? []).filter((o) => o.source === "pos").length;
   const webOrdersCount = ordersCount - posOrdersCount;
+  const deliveryOrdersCount = (orders ?? []).filter((o) => o.order_type === "delivery").length;
 
   const taxBreakup = sumTaxBreakups(
     (items ?? []).map((i) => computeTaxBreakup(Number(i.line_total), Number(i.gst_rate)))
@@ -75,6 +76,7 @@ export async function GET(request: Request) {
     discountsGiven,
     posOrdersCount,
     webOrdersCount,
+    deliveryOrdersCount,
     taxBreakup,
     topItems,
   });

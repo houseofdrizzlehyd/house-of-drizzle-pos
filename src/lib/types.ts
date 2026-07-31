@@ -30,6 +30,8 @@ export type OrderStatus = "placed" | "preparing" | "ready" | "completed";
 
 export type OrderSource = "web" | "pos";
 
+export type OrderType = "dine_in" | "delivery";
+
 export type Coupon = {
   id: string;
   name: string;
@@ -54,6 +56,8 @@ export type Order = {
   source: OrderSource;
   coupon_id: string | null;
   discount_amount: number;
+  order_type: OrderType;
+  delivery_address: string | null;
   created_at: string;
 };
 
