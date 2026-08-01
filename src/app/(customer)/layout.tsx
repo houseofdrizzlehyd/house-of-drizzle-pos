@@ -16,7 +16,7 @@ export default async function CustomerLayout({ children }: { children: React.Rea
     <div className="max-w-md mx-auto min-h-screen bg-cream">
       {!acceptingOrders && (
         <div className="bg-strawberry text-[#FBEAF0] text-center text-[11px] font-medium px-4 py-2">
-          We're currently not accepting online orders. Please call us or visit in person.
+          We&rsquo;re currently not accepting online orders. Please call us or visit in person.
         </div>
       )}
       {children}
