@@ -61,6 +61,7 @@ export type Order = {
   delivery_charge: number;
   delivery_lat: number | null;
   delivery_lng: number | null;
+  is_invalid: boolean;
   created_at: string;
 };
 

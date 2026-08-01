@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
-const ALLOWED_ACTIONS = ["mark_paid", "mark_ready", "mark_completed"] as const;
+const ALLOWED_ACTIONS = ["mark_paid", "mark_ready", "mark_completed", "mark_invalid", "mark_valid"] as const;
 type Action = (typeof ALLOWED_ACTIONS)[number];
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -46,7 +46,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ? { is_paid: true, status: "preparing", paid_at: now }
       : action === "mark_ready"
       ? { status: "ready", ready_at: now }
-      : { status: "completed", completed_at: now };
+      : action === "mark_completed"
+      ? { status: "completed", completed_at: now }
+      : action === "mark_invalid"
+      ? { is_invalid: true }
+      : { is_invalid: false };
 
   const { error } = await supabase.from("orders").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: "Could not update order." }, { status: 500 });

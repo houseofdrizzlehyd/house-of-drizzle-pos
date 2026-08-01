@@ -124,6 +124,7 @@ create table if not exists orders (
   delivery_charge numeric(10,2) not null default 0, -- snapshot of settings.delivery_charge_amount at order time
   delivery_lat double precision,   -- customer-dropped pin, for radius enforcement + staff "view on map"
   delivery_lng double precision,
+  is_invalid boolean not null default false, -- staff-flagged test/junk order; excluded from the live queue and reports, but kept for the day history view
   created_at timestamptz not null default now(),
   paid_at timestamptz,
   ready_at timestamptz,

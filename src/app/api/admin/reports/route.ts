@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     .from("orders")
     .select("*")
     .eq("is_paid", true)
+    .eq("is_invalid", false)
     .gte("created_at", since);
 
   if (error) return NextResponse.json({ error: "Could not load report." }, { status: 500 });
