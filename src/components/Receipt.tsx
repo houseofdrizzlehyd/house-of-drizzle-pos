@@ -13,6 +13,7 @@ export type ReceiptOrder = {
 
 export type ReceiptItem = {
   product_name: string;
+  category_name?: string | null;
   quantity: number;
   unit_price: number;
   topping_names: string[];
@@ -66,6 +67,7 @@ export function Receipt({ order, items }: { order: ReceiptOrder; items: ReceiptI
               {item.product_name}
               {item.quantity > 1 ? ` x${item.quantity}` : ""}
               {item.is_free_reward ? " (reward)" : ""}
+              {item.category_name ? ` [${item.category_name}]` : ""}
             </span>
             <span>Rs {Number(item.line_total).toFixed(2)}</span>
           </div>

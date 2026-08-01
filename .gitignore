@@ -7,3 +7,6 @@ out
 *.xlsx
 import.sql
 *.b64.txt
+*.tsbuildinfo
+/marketing-site/
+*.zip

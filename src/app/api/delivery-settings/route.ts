@@ -8,7 +8,7 @@ export async function GET() {
   const { data } = await supabase
     .from("settings")
     .select("key, value")
-    .in("key", ["delivery_minimum_order_amount", "delivery_charge_amount", "delivery_radius_km"]);
+    .in("key", ["delivery_minimum_order_amount", "delivery_charge_amount", "delivery_radius_km", "accepting_orders"]);
 
   const byKey = new Map((data ?? []).map((row) => [row.key, row.value]));
 
@@ -16,5 +16,6 @@ export async function GET() {
     minimumOrderAmount: Number(byKey.get("delivery_minimum_order_amount") ?? 200) || 200,
     deliveryCharge: Number(byKey.get("delivery_charge_amount") ?? 0) || 0,
     radiusKm: Number(byKey.get("delivery_radius_km") ?? 5) || 5,
+    acceptingOrders: byKey.get("accepting_orders") ?? true,
   });
 }

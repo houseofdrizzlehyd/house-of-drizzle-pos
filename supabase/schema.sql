@@ -68,6 +68,10 @@ insert into settings (key, value)
 values ('delivery_radius_km', '5')
 on conflict (key) do nothing;
 
+insert into settings (key, value)
+values ('accepting_orders', 'true')
+on conflict (key) do nothing;
+
 -- ---------------------------------------------------------------------------
 -- Customers (recognized by mobile number, tracked for the loyalty milestone)
 -- ---------------------------------------------------------------------------
@@ -134,6 +138,7 @@ create table if not exists order_items (
   order_id uuid not null references orders(id) on delete cascade,
   product_id uuid not null references products(id) on delete restrict,
   product_name text not null,
+  category_name text,              -- snapshot of the product's category at order time, for bills/reports
   quantity int not null default 1,
   unit_price numeric(10,2) not null,      -- tax-inclusive price per unit, before toppings
   topping_names text[] not null default '{}',

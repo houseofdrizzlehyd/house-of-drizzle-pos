@@ -69,6 +69,7 @@ export type OrderItem = {
   order_id: string;
   product_id: string;
   product_name: string;
+  category_name: string | null;
   quantity: number;
   unit_price: number;
   topping_names: string[];

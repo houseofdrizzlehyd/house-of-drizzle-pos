@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
-const KEYS = ["delivery_minimum_order_amount", "delivery_charge_amount", "delivery_radius_km"] as const;
+const KEYS = [
+  "delivery_minimum_order_amount",
+  "delivery_charge_amount",
+  "delivery_radius_km",
+  "accepting_orders",
+] as const;
 
 export async function GET() {
   const user = await requireAdmin();
@@ -16,6 +21,7 @@ export async function GET() {
     deliveryMinimumOrderAmount: Number(byKey.get("delivery_minimum_order_amount") ?? 200) || 200,
     deliveryChargeAmount: Number(byKey.get("delivery_charge_amount") ?? 0) || 0,
     deliveryRadiusKm: Number(byKey.get("delivery_radius_km") ?? 5) || 5,
+    acceptingOrders: byKey.get("accepting_orders") ?? true,
   });
 }
 
@@ -26,7 +32,7 @@ export async function PATCH(request: Request) {
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid body." }, { status: 400 });
 
-  const updates: { key: string; value: number }[] = [];
+  const updates: { key: string; value: number | boolean }[] = [];
 
   if ("deliveryMinimumOrderAmount" in body) {
     const value = Number(body.deliveryMinimumOrderAmount);
@@ -50,6 +56,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Delivery radius must be a positive number." }, { status: 400 });
     }
     updates.push({ key: "delivery_radius_km", value });
+  }
+
+  if ("acceptingOrders" in body) {
+    updates.push({ key: "accepting_orders", value: Boolean(body.acceptingOrders) });
   }
 
   if (updates.length === 0) {

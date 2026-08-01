@@ -28,6 +28,118 @@ function OrderTypeBadge({ orderType }: { orderType: OrderType }) {
   return <span className="chip ml-1.5 bg-mango text-chocolate font-medium">Delivery</span>;
 }
 
+function OrderDetailsModal({ order, onClose }: { order: OrderWithItems; onClose: () => void }) {
+  const total = Number(order.subtotal) + Number(order.delivery_charge);
+  const createdAt = new Date(order.created_at);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-cream w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="flex items-center flex-wrap">
+              <span className="text-sm font-medium text-chocolate">Order #{order.order_number}</span>
+              <SourceBadge source={order.source} />
+              <OrderTypeBadge orderType={order.order_type} />
+            </div>
+            <div className="text-[11px] text-mocha mt-1">
+              {createdAt.toLocaleDateString()}{" "}
+              {createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-mocha text-lg leading-none px-1">
+            &times;
+          </button>
+        </div>
+
+        <div className="bg-vanilla rounded-lg p-3 mb-3">
+          <div className="text-[10px] uppercase tracking-wide text-mocha mb-1">Customer</div>
+          <div className="text-xs text-chocolate font-medium">{order.customer_name}</div>
+          <a href={`tel:${order.customer_mobile}`} className="text-xs text-mocha underline">
+            {order.customer_mobile}
+          </a>
+          {order.order_type === "delivery" && order.delivery_address && (
+            <div className="text-[11px] text-mocha mt-2">
+              <span className="font-medium text-chocolate">Deliver to:</span> {order.delivery_address}
+              {order.delivery_lat != null && order.delivery_lng != null && (
+                <>
+                  {" "}
+                  &middot;{" "}
+                  <a
+                    href={`https://www.google.com/maps?q=${order.delivery_lat},${order.delivery_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-mango underline"
+                  >
+                    View on map
+                  </a>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="text-[10px] uppercase tracking-wide text-mocha mb-1.5">Items</div>
+        <div className="flex flex-col gap-2 mb-3">
+          {order.items.map((item) => (
+            <div key={item.id} className="flex justify-between items-start text-xs">
+              <div className="min-w-0">
+                {item.category_name && (
+                  <div className="text-[9.5px] uppercase tracking-wide text-mocha">{item.category_name}</div>
+                )}
+                <div className="text-espresso">
+                  {item.product_name}
+                  {item.quantity > 1 ? ` x${item.quantity}` : ""}
+                  {item.is_free_reward ? " (reward)" : ""}
+                </div>
+                {item.topping_names.length > 0 && (
+                  <div className="text-[10px] text-mocha">+ {item.topping_names.join(", ")}</div>
+                )}
+              </div>
+              <span className="text-chocolate flex-shrink-0 ml-2">Rs {Number(item.line_total).toFixed(0)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-gold/50 pt-2 flex flex-col gap-1 text-xs">
+          <div className="flex justify-between text-espresso">
+            <span>Items total</span>
+            <span>Rs {(Number(order.subtotal) + Number(order.discount_amount)).toFixed(0)}</span>
+          </div>
+          {Number(order.discount_amount) > 0 && (
+            <div className="flex justify-between text-strawberry">
+              <span>Discount</span>
+              <span>-Rs {Number(order.discount_amount).toFixed(0)}</span>
+            </div>
+          )}
+          {Number(order.delivery_charge) > 0 && (
+            <div className="flex justify-between text-espresso">
+              <span>Delivery charge</span>
+              <span>Rs {Number(order.delivery_charge).toFixed(0)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-medium text-chocolate text-sm pt-1">
+            <span>Total</span>
+            <span>Rs {total.toFixed(0)}</span>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <span className={`chip ${order.is_paid ? "bg-pistachio text-[#EAF3DE]" : "bg-strawberry text-[#FBEAF0]"}`}>
+            {order.is_paid ? "Paid" : "Unpaid"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminOrdersClient() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -35,6 +147,7 @@ export function AdminOrdersClient() {
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewOrderId, setViewOrderId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/orders", { cache: "no-store" });
@@ -179,14 +292,22 @@ export function AdminOrdersClient() {
             </div>
             <div className="flex items-center justify-between mt-1">
               <span className="text-[10px] text-mocha">{timeAgo(order.created_at)}</span>
-              <button
-                onClick={() => deleteOrder(order.id, order.order_number)}
-                disabled={deletingId === order.id}
-                className="text-[10px] text-strawberry underline inline-flex items-center gap-1 disabled:opacity-60"
-              >
-                {deletingId === order.id && <Spinner className="h-2.5 w-2.5" />}
-                Delete
-              </button>
+              <span className="flex items-center gap-3">
+                <button
+                  onClick={() => setViewOrderId(order.id)}
+                  className="text-[10px] text-mocha underline"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => deleteOrder(order.id, order.order_number)}
+                  disabled={deletingId === order.id}
+                  className="text-[10px] text-strawberry underline inline-flex items-center gap-1 disabled:opacity-60"
+                >
+                  {deletingId === order.id && <Spinner className="h-2.5 w-2.5" />}
+                  Delete
+                </button>
+              </span>
             </div>
           </div>
         ))}
@@ -286,14 +407,22 @@ export function AdminOrdersClient() {
                 {deletingId === order.id && <Spinner className="h-2.5 w-2.5" />}
                 Delete
               </button>
-              <button
-                onClick={() => printBill(order.id)}
-                disabled={printingId === order.id}
-                className="text-[10px] text-mocha underline inline-flex items-center gap-1 disabled:opacity-60"
-              >
-                {printingId === order.id && <Spinner className="h-2.5 w-2.5" />}
-                Print bill
-              </button>
+              <span className="flex items-center gap-3">
+                <button
+                  onClick={() => setViewOrderId(order.id)}
+                  className="text-[10px] text-mocha underline"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => printBill(order.id)}
+                  disabled={printingId === order.id}
+                  className="text-[10px] text-mocha underline inline-flex items-center gap-1 disabled:opacity-60"
+                >
+                  {printingId === order.id && <Spinner className="h-2.5 w-2.5" />}
+                  Print bill
+                </button>
+              </span>
             </div>
           </div>
         ))}
@@ -303,6 +432,11 @@ export function AdminOrdersClient() {
       )}
 
       {receiptData && <Receipt order={receiptData.order} items={receiptData.items} />}
+
+      {viewOrderId && (() => {
+        const order = orders.find((o) => o.id === viewOrderId);
+        return order ? <OrderDetailsModal order={order} onClose={() => setViewOrderId(null)} /> : null;
+      })()}
     </div>
   );
 }

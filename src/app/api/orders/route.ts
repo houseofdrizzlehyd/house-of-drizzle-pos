@@ -34,6 +34,25 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const supabase = createServiceClient();
+
+  // Online ordering can be paused from Admin Settings — POS is unaffected so
+  // staff can still ring up walk-in/phone orders while the web toggle is off.
+  if (source === "web") {
+    const { data: acceptingRow } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "accepting_orders")
+      .maybeSingle();
+    const acceptingOrders = acceptingRow ? Boolean(acceptingRow.value) : true;
+    if (!acceptingOrders) {
+      return NextResponse.json(
+        { error: "We're currently not accepting online orders. Please call us or visit in person." },
+        { status: 503 }
+      );
+    }
+  }
+
   if (!name) return NextResponse.json({ error: "Name is required." }, { status: 400 });
   if (!/^[0-9]{10}$/.test(mobile)) {
     return NextResponse.json({ error: "A valid 10-digit mobile number is required." }, { status: 400 });
@@ -47,8 +66,6 @@ export async function POST(request: Request) {
   if (orderType === "delivery" && (deliveryLat === null || deliveryLng === null)) {
     return NextResponse.json({ error: "A delivery pin location is required." }, { status: 400 });
   }
-
-  const supabase = createServiceClient();
 
   // Re-fetch every product and topping server-side — never trust client-sent prices.
   const productIds = [...new Set(lines.map((l) => l.productId))];
@@ -69,9 +86,19 @@ export async function POST(request: Request) {
   const productById = new Map(products.map((p) => [p.id, p]));
   const toppingById = new Map((toppings ?? []).map((t) => [t.id, t]));
 
+  // Snapshot each product's category name onto the order item — the reward
+  // dish (added below) may belong to a category not in this cart, so it's
+  // looked up and merged into this same map when it comes up.
+  const categoryIds = [...new Set(products.map((p) => p.category_id))];
+  const { data: categories } = categoryIds.length
+    ? await supabase.from("categories").select("id, name").in("id", categoryIds)
+    : { data: [] as { id: string; name: string }[] };
+  const categoryNameById = new Map((categories ?? []).map((c) => [c.id, c.name]));
+
   type ItemRow = {
     product_id: string;
     product_name: string;
+    category_name: string | null;
     quantity: number;
     unit_price: number;
     topping_names: string[];
@@ -100,6 +127,7 @@ export async function POST(request: Request) {
     orderItems.push({
       product_id: product.id,
       product_name: product.name,
+      category_name: categoryNameById.get(product.category_id) ?? null,
       quantity,
       unit_price: unitPrice,
       topping_names: selectedToppings.map((t) => t.name),
@@ -163,9 +191,19 @@ export async function POST(request: Request) {
     if (rewardProduct) {
       rewardApplied = "free_dish";
       rewardProductId = rewardProduct.id;
+      let rewardCategoryName = categoryNameById.get(rewardProduct.category_id) ?? null;
+      if (rewardCategoryName === null) {
+        const { data: rewardCategory } = await supabase
+          .from("categories")
+          .select("name")
+          .eq("id", rewardProduct.category_id)
+          .maybeSingle();
+        rewardCategoryName = rewardCategory?.name ?? null;
+      }
       orderItems.push({
         product_id: rewardProduct.id,
         product_name: rewardProduct.name,
+        category_name: rewardCategoryName,
         quantity: 1,
         unit_price: Number(rewardProduct.price),
         topping_names: [],

@@ -14,6 +14,7 @@ type OrderType = "dine_in" | "delivery";
 type DeliverySettings = { minimumOrderAmount: number; deliveryCharge: number; radiusKm: number };
 
 const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = { minimumOrderAmount: 200, deliveryCharge: 0, radiusKm: 5 };
+const CLOSED_MESSAGE = "We're currently not accepting online orders. Please call us or visit in person.";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function CheckoutPage() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [pickedLocation, setPickedLocation] = useState<PickedLocation | null>(null);
   const [deliverySettings, setDeliverySettings] = useState<DeliverySettings>(DEFAULT_DELIVERY_SETTINGS);
+  const [acceptingOrders, setAcceptingOrders] = useState(true);
 
   useEffect(() => {
     fetch("/api/coupons?channel=web")
@@ -36,13 +38,14 @@ export default function CheckoutPage() {
       .catch(() => {});
     fetch("/api/delivery-settings")
       .then((res) => res.json())
-      .then((body) =>
+      .then((body) => {
         setDeliverySettings({
           minimumOrderAmount: Number(body.minimumOrderAmount) || 200,
           deliveryCharge: Number(body.deliveryCharge) || 0,
           radiusKm: Number(body.radiusKm) || 5,
-        })
-      )
+        });
+        setAcceptingOrders(body.acceptingOrders !== false);
+      })
       .catch(() => {});
   }, []);
 
@@ -54,6 +57,7 @@ export default function CheckoutPage() {
 
   async function placeOrder() {
     setError(null);
+    if (!acceptingOrders) return setError(CLOSED_MESSAGE);
     if (!name.trim()) return setError("Please enter your name.");
     if (!/^[0-9]{10}$/.test(mobile.trim())) return setError("Please enter a valid 10-digit mobile number.");
     if (lines.length === 0) return setError("Your cart is empty.");
@@ -268,16 +272,24 @@ export default function CheckoutPage() {
         />
       </div>
 
+      {!acceptingOrders && (
+        <div className="px-4 pt-3">
+          <div className="bg-strawberry/10 border-l-[3px] border-strawberry rounded-r-lg px-3 py-2.5 text-xs text-espresso">
+            {CLOSED_MESSAGE}
+          </div>
+        </div>
+      )}
+
       {error && <div className="px-4 pt-3 text-xs text-strawberry">{error}</div>}
 
       <div className="px-4 pt-4">
         <button
           onClick={placeOrder}
-          disabled={submitting}
+          disabled={submitting || !acceptingOrders}
           className="btn-primary w-full disabled:opacity-60 flex items-center justify-center gap-2"
         >
           {submitting && <Spinner className="h-4 w-4" />}
-          {submitting ? "Placing order..." : "Place order"}
+          {!acceptingOrders ? "Not accepting orders" : submitting ? "Placing order..." : "Place order"}
         </button>
         <div className="text-center text-[10px] text-mocha mt-2">
           {orderType === "delivery"
